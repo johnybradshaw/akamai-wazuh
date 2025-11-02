@@ -1,0 +1,70 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Dashboard Resource Limits
+# ============================================================================
+# Resource limits for Wazuh Dashboard (Web UI)
+#   - Provides web interface
+#   - Visualizations and reports
+#   - User management
+#   - Lower resource requirements than indexer
+# ============================================================================
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wazuh-dashboard
+  namespace: wazuh
+spec:
+  # Number of dashboard replicas
+  replicas: 1
+
+  template:
+    spec:
+      containers:
+        - name: wazuh-dashboard
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Environment variables
+          env:
+            # Node options for memory
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=768"
+
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 5601
+              scheme: HTTPS
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+              scheme: HTTPS
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Startup probe for initial startup
+          startupProbe:
+            httpGet:
+              path: /status
+              port: 5601
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30  # Allow up to 5 minutes for startup

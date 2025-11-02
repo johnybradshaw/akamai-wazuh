@@ -1,0 +1,98 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Manager LoadBalancer Services
+# ============================================================================
+# These LoadBalancer services expose Wazuh manager and worker endpoints
+# for agent communication. ExternalDNS automatically creates DNS records.
+#
+# Architecture:
+#   - wazuh-manager-lb   → wazuh-registration.${DOMAIN}:1515 (Registration)
+#                        → wazuh-registration.${DOMAIN}:55000 (API)
+#   - wazuh-workers-lb   → wazuh-manager.${DOMAIN}:1514      (Events)
+# ============================================================================
+
+---
+# LoadBalancer for Wazuh Manager Master (Registration + API)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-manager-lb
+  namespace: wazuh
+  labels:
+    app: wazuh-manager
+    role: master
+    service-type: loadbalancer
+  annotations:
+    # ExternalDNS configuration
+    external-dns.alpha.kubernetes.io/hostname: "wazuh-registration.${DOMAIN}"
+    external-dns.alpha.kubernetes.io/ttl: "300"
+
+    # Linode LoadBalancer annotations (optional, for customization)
+    service.beta.kubernetes.io/linode-loadbalancer-throttle: "20"
+
+    # Documentation
+    description: "Wazuh Manager Master - Agent Registration and API access"
+spec:
+  type: LoadBalancer
+  selector:
+    app: wazuh-manager
+    node-type: master
+  ports:
+    # Agent registration port
+    - name: registration
+      protocol: TCP
+      port: 1515
+      targetPort: 1515
+
+    # Wazuh API port
+    - name: api
+      protocol: TCP
+      port: 55000
+      targetPort: 55000
+
+  # Session affinity to maintain agent connections
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+
+---
+# LoadBalancer for Wazuh Worker Nodes (Agent Events)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-workers-lb
+  namespace: wazuh
+  labels:
+    app: wazuh-manager
+    role: worker
+    service-type: loadbalancer
+  annotations:
+    # ExternalDNS configuration
+    external-dns.alpha.kubernetes.io/hostname: "wazuh-manager.${DOMAIN}"
+    external-dns.alpha.kubernetes.io/ttl: "300"
+
+    # Linode LoadBalancer annotations
+    service.beta.kubernetes.io/linode-loadbalancer-throttle: "20"
+
+    # Documentation
+    description: "Wazuh Workers - Agent event processing"
+spec:
+  type: LoadBalancer
+  selector:
+    app: wazuh-manager
+    node-type: worker
+  ports:
+    # Agent events port (main communication)
+    - name: agents-events
+      protocol: TCP
+      port: 1514
+      targetPort: 1514
+
+  # Session affinity for agent connections
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+
+  # LoadBalancer policy
+  externalTrafficPolicy: Local  # Preserve source IP

@@ -1,0 +1,33 @@
+# Credentials and sensitive files
+.credentials
+config.env
+*.credentials
+*.env
+
+# Generated Kubernetes files
+kubernetes/overlays/production/internal_users.yml
+kubernetes/overlays/production/wazuh-credentials-secret.yaml
+
+# Generated files
+*.tar.gz
+*.backup
+deploy.log
+
+# Cloned repository
+kubernetes/wazuh-kubernetes/
+
+# Certificates
+kubernetes/wazuh-kubernetes/wazuh/certs/
+
+# Local testing
+test/
+*.local
+.DS_Store
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# OS specific
+Thumbs.db

@@ -1,0 +1,66 @@
+# ============================================================================
+# Wazuh Agent Deployment - VM List Example
+# ============================================================================
+# This file is used by deploy-agents-bulk.sh to deploy agents to multiple VMs
+#
+# Format: hostname,agent_name,agent_group
+#
+# Fields:
+#   hostname     - SSH hostname or IP (required)
+#                  Can include user: user@hostname
+#   agent_name   - Custom name for the agent (optional, defaults to hostname)
+#   agent_group  - Agent group for organization (optional, defaults to "default")
+#
+# Usage:
+#   1. Copy this file: cp vm-list.txt.example vm-list.txt
+#   2. Edit vm-list.txt with your VMs
+#   3. Run: ./deploy-agents-bulk.sh vm-list.txt
+#
+# Notes:
+#   - Lines starting with # are comments (ignored)
+#   - Empty lines are ignored
+#   - SSH access must be configured for all hosts
+#   - All VMs must be Ubuntu/Debian based
+# ============================================================================
+
+# Web Servers
+web-server-01.example.com,web-01,web-servers
+web-server-02.example.com,web-02,web-servers
+192.168.1.10,web-03,web-servers
+
+# Application Servers
+app-server-01.example.com,app-01,app-servers
+app-server-02.example.com,app-02,app-servers
+
+# Database Servers
+root@db-server-01.example.com,db-master,database-servers
+root@db-server-02.example.com,db-replica-01,database-servers
+
+# Load Balancers
+lb-01.example.com,lb-01,load-balancers
+lb-02.example.com,lb-02,load-balancers
+
+# Monitoring Servers
+monitor-01.example.com,prometheus-01,monitoring
+monitor-02.example.com,grafana-01,monitoring
+
+# Development Servers (using default group)
+dev-server-01.example.com,dev-01
+dev-server-02.example.com,dev-02
+
+# Kubernetes Worker Nodes
+k8s-worker-01.example.com,k8s-worker-01,kubernetes
+k8s-worker-02.example.com,k8s-worker-02,kubernetes
+k8s-worker-03.example.com,k8s-worker-03,kubernetes
+
+# Examples with IP addresses
+192.168.1.20,backend-01,backend
+192.168.1.21,backend-02,backend
+192.168.1.30,cache-01,caching
+
+# Examples with username specified
+ubuntu@10.0.1.10,staging-web-01,staging
+ubuntu@10.0.1.11,staging-web-02,staging
+
+# Example with FQDN and custom port (SSH config)
+server.example.com,custom-server,custom-group
