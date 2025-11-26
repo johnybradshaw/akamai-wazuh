@@ -190,7 +190,7 @@ Username:  admin
 Password:  <randomly-generated>
 ```
 
-Credentials are also saved to `kubernetes/overlays/production/.credentials`
+Credentials are also saved to `kubernetes/production-overlay/.credentials`
 
 ## Post-Deployment
 
@@ -273,7 +273,7 @@ This checks:
 #### Scale Worker Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/overlays/production/kustomization.yml
+nano kubernetes/production-overlay/kustomization.yml
 
 # Change worker replicas
 replicas:
@@ -281,13 +281,13 @@ replicas:
     count: 4  # Increase from 2 to 4
 
 # Apply changes
-kubectl apply -k kubernetes/overlays/production/
+kubectl apply -k kubernetes/production-overlay/
 ```
 
 #### Scale Indexer Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/overlays/production/kustomization.yml
+nano kubernetes/production-overlay/kustomization.yml
 
 # Change indexer replicas
 replicas:
@@ -295,7 +295,7 @@ replicas:
     count: 5  # Increase from 3 to 5
 
 # Apply changes
-kubectl apply -k kubernetes/overlays/production/
+kubectl apply -k kubernetes/production-overlay/
 ```
 
 ### Resource Limits
@@ -303,19 +303,19 @@ kubectl apply -k kubernetes/overlays/production/
 Edit resource limit files to adjust CPU/memory:
 ```bash
 # Manager Master
-nano kubernetes/overlays/production/manager-master-resources.yaml
+nano kubernetes/production-overlay/manager-master-resources.yaml
 
 # Manager Workers
-nano kubernetes/overlays/production/manager-worker-resources.yaml
+nano kubernetes/production-overlay/manager-worker-resources.yaml
 
 # Indexer
-nano kubernetes/overlays/production/indexer-resources.yaml
+nano kubernetes/production-overlay/indexer-resources.yaml
 
 # Dashboard
-nano kubernetes/overlays/production/dashboard-resources.yaml
+nano kubernetes/production-overlay/dashboard-resources.yaml
 
 # Apply changes
-kubectl apply -k kubernetes/overlays/production/
+kubectl apply -k kubernetes/production-overlay/
 ```
 
 ### Storage
@@ -323,7 +323,7 @@ kubectl apply -k kubernetes/overlays/production/
 #### Increase Storage Size
 ```bash
 # Edit resource files to change PVC size
-nano kubernetes/overlays/production/indexer-resources.yaml
+nano kubernetes/production-overlay/indexer-resources.yaml
 
 # Change storage size
 resources:
@@ -337,13 +337,13 @@ resources:
 #### Change Storage Class
 ```bash
 # Edit resource files
-nano kubernetes/overlays/production/manager-master-resources.yaml
+nano kubernetes/production-overlay/manager-master-resources.yaml
 
 # Change storageClassName
 storageClassName: linode-block-storage-retain  # or custom class
 
 # Apply changes
-kubectl apply -k kubernetes/overlays/production/
+kubectl apply -k kubernetes/production-overlay/
 ```
 
 ## Monitoring and Operations
@@ -434,7 +434,7 @@ kubectl exec -n wazuh wazuh-indexer-0 -- curl -X PUT \
 #### Backup Configuration
 ```bash
 # Backup credentials
-cp kubernetes/overlays/production/.credentials backup/
+cp kubernetes/production-overlay/.credentials backup/
 
 # Backup Kubernetes manifests
 kubectl get all -n wazuh -o yaml > backup/wazuh-backup.yaml
@@ -447,15 +447,15 @@ kubectl get all -n wazuh -o yaml > backup/wazuh-backup.yaml
 
 ```bash
 # Generate new credentials
-cd kubernetes/overlays/production
+cd kubernetes/production-overlay
 rm .credentials internal_users.yml
 cd ../..
-./kubernetes/scripts/generate-credentials.sh kubernetes/overlays/production/
+./kubernetes/scripts/generate-credentials.sh kubernetes/production-overlay/
 
 # Update Kubernetes secrets
 kubectl delete secret -n wazuh wazuh-indexer-cred
 kubectl create secret generic wazuh-indexer-cred \
-  --from-file=internal_users.yml=kubernetes/overlays/production/internal_users.yml \
+  --from-file=internal_users.yml=kubernetes/production-overlay/internal_users.yml \
   -n wazuh
 
 # Restart affected pods
@@ -629,7 +629,7 @@ Notes:
 
 ```bash
 # Update image tags in kustomization.yml
-nano kubernetes/overlays/production/kustomization.yml
+nano kubernetes/production-overlay/kustomization.yml
 
 # Change image tags
 images:
@@ -641,7 +641,7 @@ images:
     newTag: 4.9.2
 
 # Apply update
-kubectl apply -k kubernetes/overlays/production/
+kubectl apply -k kubernetes/production-overlay/
 
 # Monitor rollout
 kubectl rollout status statefulset/wazuh-indexer -n wazuh
@@ -665,7 +665,7 @@ Major updates require careful planning:
 
 ```bash
 # Delete Wazuh resources
-kubectl delete -k kubernetes/overlays/production/
+kubectl delete -k kubernetes/production-overlay/
 
 # Delete namespace
 kubectl delete namespace wazuh

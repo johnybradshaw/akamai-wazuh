@@ -5,8 +5,8 @@ config.env
 *.env
 
 # Generated Kubernetes files
-kubernetes/overlays/production/internal_users.yml
-kubernetes/overlays/production/wazuh-credentials-secret.yaml
+kubernetes/production-overlay/internal_users.yml
+kubernetes/production-overlay/wazuh-credentials-secret.yaml
 
 # Generated files
 *.tar.gz

@@ -421,7 +421,7 @@ fi
 # ============================================================================
 log_step "Step 7: Generating Secure Credentials"
 
-OVERLAY_DIR="$SCRIPT_DIR/kubernetes/overlays/production"
+OVERLAY_DIR="$SCRIPT_DIR/kubernetes/production-overlay"
 bash "$SCRIPT_DIR/kubernetes/scripts/generate-credentials.sh" "$OVERLAY_DIR"
 
 log_success "Credentials generated and saved to $OVERLAY_DIR/.credentials"
