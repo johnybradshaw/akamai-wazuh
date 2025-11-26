@@ -1,3 +1,4 @@
 .DS_Store
 config.env
-vm-list.txt
+**/vm-list.txt
+**/.credentials
