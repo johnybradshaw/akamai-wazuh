@@ -1,0 +1,70 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Manager Master Resource Limits
+# ============================================================================
+# Resource limits for Wazuh Manager Master node
+#   - Handles agent registration
+#   - Manages cluster configuration
+#   - Provides API access
+#   - Coordinates worker nodes
+# ============================================================================
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wazuh-manager-master
+  namespace: wazuh
+spec:
+  template:
+    spec:
+      containers:
+        - name: wazuh-manager
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+
+          # Environment variables for tuning
+          env:
+            # Java heap size for API (if applicable)
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m"
+
+          # Liveness probe
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - /var/ossec/bin/wazuh-control status | grep -q "wazuh-analysisd is running"
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - /var/ossec/bin/wazuh-control status | grep -q "wazuh-analysisd is running"
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+  # Volume claim templates for persistent storage
+  volumeClaimTemplates:
+    - metadata:
+        name: wazuh-manager-master
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: linode-block-storage-retain
+        resources:
+          requests:
+            storage: 50Gi

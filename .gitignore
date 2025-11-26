@@ -1,2 +1,4 @@
+.DS_Store
 config.env
-agent-deployment/vm-list.txt
+**/vm-list.txt
+**/.credentials

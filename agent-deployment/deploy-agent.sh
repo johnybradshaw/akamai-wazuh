@@ -120,7 +120,7 @@ AGENT_PASSWORD=$(kubectl get secret -n "$WAZUH_NAMESPACE" wazuh-authd-pass -o js
 
 if [[ -z "$AGENT_PASSWORD" ]]; then
     # Try to get from credentials file
-    CREDENTIALS_FILE="$SCRIPT_DIR/../kubernetes/overlays/production/.credentials"
+    CREDENTIALS_FILE="$SCRIPT_DIR/../kubernetes/production-overlay/.credentials"
     if [[ -f "$CREDENTIALS_FILE" ]]; then
         AGENT_PASSWORD=$(grep "WAZUH_AGENT_PASSWORD=" "$CREDENTIALS_FILE" | cut -d'=' -f2 | tr -d '"')
     fi

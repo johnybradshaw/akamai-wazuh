@@ -1,0 +1,82 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Service Type Patches
+# ============================================================================
+# These patches convert default LoadBalancer services to ClusterIP
+# to reduce costs and use only the LoadBalancers defined in
+# manager-loadbalancers.yaml
+#
+# This configuration:
+#   - Reduces from 6+ LoadBalancers to only 2 LoadBalancers
+#   - Saves ~$10-20/month per removed LoadBalancer
+#   - Uses Ingress for dashboard HTTPS access
+#   - Maintains internal ClusterIP services for pod communication
+# ============================================================================
+
+---
+# Patch: Wazuh Dashboard Service → ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-dashboard
+  namespace: wazuh
+spec:
+  type: ClusterIP
+  # Remove LoadBalancer-specific fields
+  externalTrafficPolicy: null
+  loadBalancerIP: null
+  loadBalancerSourceRanges: null
+
+---
+# Patch: Wazuh Indexer API Service → ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-indexer
+  namespace: wazuh
+spec:
+  type: ClusterIP
+  externalTrafficPolicy: null
+  loadBalancerIP: null
+  loadBalancerSourceRanges: null
+
+---
+# Patch: Wazuh Manager Master Service → ClusterIP
+# (External access via wazuh-manager-lb LoadBalancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh
+  namespace: wazuh
+spec:
+  type: ClusterIP
+  externalTrafficPolicy: null
+  loadBalancerIP: null
+  loadBalancerSourceRanges: null
+
+---
+# Patch: Wazuh Workers Service → ClusterIP
+# (External access via wazuh-workers-lb LoadBalancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-workers
+  namespace: wazuh
+spec:
+  type: ClusterIP
+  externalTrafficPolicy: null
+  loadBalancerIP: null
+  loadBalancerSourceRanges: null
+
+---
+# Patch: Wazuh Cluster Service → ClusterIP
+# (Internal cluster communication only)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-cluster
+  namespace: wazuh
+spec:
+  type: ClusterIP
+  externalTrafficPolicy: null
+  loadBalancerIP: null
+  loadBalancerSourceRanges: null

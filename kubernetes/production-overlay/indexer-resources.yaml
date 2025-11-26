@@ -1,0 +1,104 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Indexer Resource Limits
+# ============================================================================
+# Resource limits for Wazuh Indexer (OpenSearch)
+#   - Stores security events
+#   - Provides search and analytics
+#   - Requires more memory for heap
+#   - Benefits from SSD storage
+# ============================================================================
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wazuh-indexer
+  namespace: wazuh
+spec:
+  # Number of indexer replicas for redundancy
+  replicas: 3
+
+  template:
+    spec:
+      containers:
+        - name: wazuh-indexer
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+
+          # Environment variables for OpenSearch tuning
+          env:
+            # Java heap size (50% of container memory limit)
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms1g -Xmx2g"
+
+            # Disable memory swapping
+            - name: bootstrap.memory_lock
+              value: "false"
+
+            # Node roles
+            - name: node.master
+              value: "true"
+            - name: node.data
+              value: "true"
+            - name: node.ingest
+              value: "true"
+
+            # Cluster settings
+            - name: cluster.routing.allocation.disk.threshold_enabled
+              value: "true"
+            - name: cluster.routing.allocation.disk.watermark.low
+              value: "85%"
+            - name: cluster.routing.allocation.disk.watermark.high
+              value: "90%"
+            - name: cluster.routing.allocation.disk.watermark.flood_stage
+              value: "95%"
+
+          # Liveness probe
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: 9200
+              scheme: HTTPS
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      # Init containers for system tuning
+      initContainers:
+        - name: sysctl
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              sysctl -w vm.max_map_count=262144
+              sysctl -w fs.file-max=65536
+          securityContext:
+            privileged: true
+
+  # Volume claim templates for persistent storage
+  volumeClaimTemplates:
+    - metadata:
+        name: wazuh-indexer
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: linode-block-storage-retain
+        resources:
+          requests:
+            storage: 100Gi
