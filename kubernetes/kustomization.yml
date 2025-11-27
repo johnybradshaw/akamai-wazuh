@@ -33,6 +33,54 @@ resources:
 #   3. Override both the configMapGenerator and the base secret
 # Currently using defaults: username=admin, password=SecretPassword
 
+# Generate certificate secrets from generated cert files
+secretGenerator:
+  - name: indexer-certs
+    namespace: wazuh
+    files:
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/node.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/node-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/admin.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/admin-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat-key.pem
+    options:
+      disableNameSuffixHash: true
+  - name: dashboard-certs
+    namespace: wazuh
+    files:
+      - wazuh-kubernetes/wazuh/certs/dashboard_http/cert.pem
+      - wazuh-kubernetes/wazuh/certs/dashboard_http/key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+    options:
+      disableNameSuffixHash: true
+
+# Generate ConfigMaps from configuration files
+configMapGenerator:
+  - name: indexer-conf
+    namespace: wazuh
+    files:
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/opensearch.yml
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/internal_users.yml
+    options:
+      disableNameSuffixHash: true
+  - name: wazuh-conf
+    namespace: wazuh
+    files:
+      - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/master.conf
+      - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/worker.conf
+    options:
+      disableNameSuffixHash: true
+  - name: dashboard-conf
+    namespace: wazuh
+    files:
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard_conf/opensearch_dashboards.yml
+    options:
+      disableNameSuffixHash: true
+
 # Patches to customize the deployment
 patches:
   # Storage class for Akamai Cloud (Linode Block Storage)
