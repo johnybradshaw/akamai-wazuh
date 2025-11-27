@@ -6,6 +6,20 @@
 [![Wazuh Version](https://img.shields.io/badge/Wazuh-4.9.2-green.svg)](https://wazuh.com/)
 [![Platform](https://img.shields.io/badge/Platform-Akamai%20Cloud-orange.svg)](https://www.linode.com/products/kubernetes/)
 
+## ⚠️ Disclaimer
+
+**This is an independent, community-driven project and is NOT officially affiliated with, endorsed by, or supported by Wazuh, Inc., Akamai Technologies, Inc., or Linode LLC.**
+
+- All trademarks, service marks, trade names, product names, and logos are the property of their respective owners
+- This project respects all applicable patents and intellectual property rights
+- **Use at your own risk and discretion** - This software is provided "as is" without warranty of any kind
+- The authors and contributors assume no liability for any damages or issues arising from the use of this project
+- Always review and test configurations in a non-production environment before deploying to production
+- For official Wazuh documentation and support, visit [wazuh.com](https://wazuh.com/)
+- For official Akamai Cloud documentation, visit [linode.com/docs](https://www.linode.com/docs/)
+
+By using this project, you acknowledge that you have read this disclaimer and agree to use the software at your own risk.
+
 ## Overview
 
 This quick-start package deploys a complete, enterprise-ready Wazuh SIEM platform on Akamai Cloud Computing in under 10 minutes. It includes:
