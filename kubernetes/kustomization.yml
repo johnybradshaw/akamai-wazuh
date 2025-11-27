@@ -37,6 +37,7 @@ resources:
 secretGenerator:
   - name: indexer-certs
     namespace: wazuh
+    behavior: replace
     files:
       - wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
       - wazuh-kubernetes/wazuh/certs/indexer_cluster/node.pem
@@ -51,6 +52,7 @@ secretGenerator:
       disableNameSuffixHash: true
   - name: dashboard-certs
     namespace: wazuh
+    behavior: replace
     files:
       - wazuh-kubernetes/wazuh/certs/dashboard_http/cert.pem
       - wazuh-kubernetes/wazuh/certs/dashboard_http/key.pem
@@ -62,6 +64,7 @@ secretGenerator:
 configMapGenerator:
   - name: indexer-conf
     namespace: wazuh
+    behavior: replace
     files:
       - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/opensearch.yml
       - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/internal_users.yml
@@ -69,6 +72,7 @@ configMapGenerator:
       disableNameSuffixHash: true
   - name: wazuh-conf
     namespace: wazuh
+    behavior: replace
     files:
       - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/master.conf
       - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/worker.conf
@@ -76,6 +80,7 @@ configMapGenerator:
       disableNameSuffixHash: true
   - name: dashboard-conf
     namespace: wazuh
+    behavior: replace
     files:
       - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard_conf/opensearch_dashboards.yml
     options:
