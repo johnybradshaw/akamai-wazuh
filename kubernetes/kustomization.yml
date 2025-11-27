@@ -1,9 +1,12 @@
 # ============================================================================
 # Akamai Cloud Wazuh Quick-Start - Main Kustomization
 # ============================================================================
-# This is the main kustomization file that orchestrates the deployment.
-# It references base resources from wazuh-kubernetes and applies production
-# overlay customizations.
+# This kustomization uses the wazuh-kubernetes base configuration and applies
+# production overlay customizations for Akamai Cloud deployment.
+#
+# IMPORTANT: Certificates must be generated before deployment!
+# Run: bash kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster/generate_certs.sh
+#      bash kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http/generate_certs.sh
 #
 # Run with: kubectl apply -k kubernetes/
 # ============================================================================
@@ -14,42 +17,21 @@ kind: Kustomization
 # Namespace for all resources
 namespace: wazuh
 
-# Base resources from wazuh-kubernetes repository
+# Use wazuh-kubernetes base configuration
+# This includes all StatefulSets, Deployments, Services, and generators
+# for ConfigMaps (wazuh-conf, indexer-conf, dashboard-conf) and
+# certificate Secrets (indexer-certs, dashboard-certs)
 resources:
-  # Namespace
-  - wazuh-kubernetes/wazuh/base/wazuh-ns.yaml
-
-  # Indexer (OpenSearch) components
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-api-svc.yaml
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-sts.yaml
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-svc.yaml
-
-  # Dashboard components
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-deploy.yaml
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-svc.yaml
-
-  # Manager components
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-sts.yaml
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-worker-sts.yaml
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-cluster-svc.yaml
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-svc.yaml
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-svc.yaml
-
-  # Secrets
-  - wazuh-kubernetes/wazuh/secrets/wazuh-api-cred-secret.yaml
-  - wazuh-kubernetes/wazuh/secrets/wazuh-authd-pass-secret.yaml
-  - wazuh-kubernetes/wazuh/secrets/wazuh-cluster-key-secret.yaml
-  - wazuh-kubernetes/wazuh/secrets/dashboard-cred-secret.yaml
-  # Note: indexer-cred-secret is generated via secretGenerator below
-
-  # Custom resources for production from overlay
+  - wazuh-kubernetes/wazuh
   - production-overlay/manager-loadbalancers.yaml
   - production-overlay/ingress.yaml
 
-# Generate indexer credentials from internal_users.yml
+# Override indexer credentials with custom generated secret
+# This replaces the base indexer-cred-secret with our custom one
 secretGenerator:
   - name: indexer-cred
     namespace: wazuh
+    behavior: replace
     files:
       - production-overlay/internal_users.yml
     options:
