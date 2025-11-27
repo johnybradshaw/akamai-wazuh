@@ -198,11 +198,27 @@ The deployment takes approximately 5-10 minutes and will:
 
 #### Step 4: Access Dashboard
 ```bash
-# Credentials are displayed after deployment
+# Default credentials (CHANGE IMMEDIATELY AFTER FIRST LOGIN!)
 Dashboard: https://wazuh.example.com
 Username:  admin
-Password:  <randomly-generated>
+Password:  SecretPassword
 ```
+
+**IMPORTANT SECURITY NOTE:**
+The current deployment uses **default credentials** from the base wazuh-kubernetes repository:
+- Username: `admin`
+- Password: `SecretPassword`
+
+**You MUST change these credentials immediately after first login!**
+
+To change the admin password:
+1. Log into the dashboard with default credentials
+2. Navigate to Security → Internal Users
+3. Edit the `admin` user and set a strong password
+4. Save and log out
+5. Log back in with your new password
+
+Future versions will include automatic random password generation. For now, manual password changes are required for security.
 
 Credentials are also saved to `kubernetes/production-overlay/.credentials`
 

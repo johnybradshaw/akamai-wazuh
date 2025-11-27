@@ -26,16 +26,12 @@ resources:
   - production-overlay/manager-loadbalancers.yaml
   - production-overlay/ingress.yaml
 
-# Override indexer credentials with custom generated secret
-# This replaces the base indexer-cred-secret with our custom one
-secretGenerator:
-  - name: indexer-cred
-    namespace: wazuh
-    behavior: replace
-    files:
-      - production-overlay/internal_users.yml
-    options:
-      disableNameSuffixHash: true
+# NOTE: Using default credentials from base wazuh-kubernetes
+# For custom passwords, you need to:
+#   1. Generate internal_users.yml with hashed passwords (for indexer auth database)
+#   2. Create matching indexer-cred secret with plain passwords (for services to auth)
+#   3. Override both the configMapGenerator and the base secret
+# Currently using defaults: username=admin, password=SecretPassword
 
 # Patches to customize the deployment
 patches:
