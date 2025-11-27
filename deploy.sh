@@ -422,6 +422,7 @@ fi
 log_step "Step 7: Generating Secure Credentials"
 
 OVERLAY_DIR="$SCRIPT_DIR/kubernetes/production-overlay"
+KUSTOMIZE_DIR="$SCRIPT_DIR/kubernetes"
 bash "$SCRIPT_DIR/kubernetes/scripts/generate-credentials.sh" "$OVERLAY_DIR"
 
 log_success "Credentials generated and saved to $OVERLAY_DIR/.credentials"
@@ -461,7 +462,7 @@ fi
 log_step "Step 10: Deploying Wazuh"
 
 log_info "Applying Kustomize configuration..."
-kubectl apply -k "$OVERLAY_DIR"
+kubectl apply -k "$KUSTOMIZE_DIR"
 
 log_success "Wazuh deployment submitted"
 

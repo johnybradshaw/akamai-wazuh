@@ -273,7 +273,7 @@ This checks:
 #### Scale Worker Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change worker replicas
 replicas:
@@ -281,13 +281,13 @@ replicas:
     count: 4  # Increase from 2 to 4
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 #### Scale Indexer Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change indexer replicas
 replicas:
@@ -295,7 +295,7 @@ replicas:
     count: 5  # Increase from 3 to 5
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ### Resource Limits
@@ -315,7 +315,7 @@ nano kubernetes/production-overlay/indexer-resources.yaml
 nano kubernetes/production-overlay/dashboard-resources.yaml
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ### Storage
@@ -343,7 +343,7 @@ nano kubernetes/production-overlay/manager-master-resources.yaml
 storageClassName: linode-block-storage-retain  # or custom class
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ## Monitoring and Operations
@@ -629,7 +629,7 @@ Notes:
 
 ```bash
 # Update image tags in kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change image tags
 images:
@@ -641,7 +641,7 @@ images:
     newTag: 4.9.2
 
 # Apply update
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 
 # Monitor rollout
 kubectl rollout status statefulset/wazuh-indexer -n wazuh
@@ -665,7 +665,7 @@ Major updates require careful planning:
 
 ```bash
 # Delete Wazuh resources
-kubectl delete -k kubernetes/production-overlay/
+kubectl delete -k kubernetes/
 
 # Delete namespace
 kubectl delete namespace wazuh
