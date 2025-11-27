@@ -20,9 +20,9 @@ resources:
   - wazuh-kubernetes/wazuh/base/wazuh-ns.yaml
 
   # Indexer (OpenSearch) components
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-api-svc.yaml
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-sts.yaml
-  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster-indexer-svc.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-api-svc.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-sts.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-svc.yaml
 
   # Dashboard components
   - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-deploy.yaml
@@ -30,7 +30,7 @@ resources:
 
   # Manager components
   - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-sts.yaml
-  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-sts.yaml
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-worker-sts.yaml
   - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-cluster-svc.yaml
   - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-svc.yaml
   - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-svc.yaml
