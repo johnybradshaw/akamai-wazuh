@@ -39,6 +39,12 @@ secretGenerator:
 
 # Patches to customize the deployment
 patches:
+  # Storage class for Akamai Cloud (Linode Block Storage)
+  - path: production-overlay/storage-class-patch.yaml
+    target:
+      kind: StorageClass
+      name: wazuh-storage
+
   # Convert default LoadBalancer services to ClusterIP
   # Note: service-patches.yaml contains multiple patches with inline targets
   - path: production-overlay/service-patches.yaml
