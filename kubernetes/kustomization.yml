@@ -58,10 +58,8 @@ secretGenerator:
 # Patches to customize the deployment
 patches:
   # Convert default LoadBalancer services to ClusterIP
+  # Note: service-patches.yaml contains multiple patches with inline targets
   - path: production-overlay/service-patches.yaml
-    target:
-      kind: Service
-      version: v1
 
   # Resource limits for manager master
   - path: production-overlay/manager-master-resources.yaml
