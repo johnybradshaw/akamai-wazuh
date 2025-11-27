@@ -23,6 +23,8 @@ metadata:
     # ExternalDNS - Automatic DNS record creation
     external-dns.alpha.kubernetes.io/hostname: "wazuh.${DOMAIN}"
     external-dns.alpha.kubernetes.io/ttl: "300"
+    # Force ExternalDNS to update existing records (overwrites stale entries)
+    external-dns.alpha.kubernetes.io/force-update: "true"
 
     # cert-manager - Automatic TLS certificate provisioning
     cert-manager.io/cluster-issuer: letsencrypt-prod
