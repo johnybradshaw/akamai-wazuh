@@ -1,0 +1,114 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Main Kustomization
+# ============================================================================
+# Root kustomization that orchestrates the production deployment.
+# This file is at the kubernetes/ level to avoid Kustomize security
+# restrictions on referencing files outside the kustomization root.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace for all resources
+namespace: wazuh
+
+# Base resources from wazuh-kubernetes repository
+resources:
+  # Namespace
+  - wazuh-kubernetes/wazuh/base/wazuh-ns.yaml
+
+  # Indexer (OpenSearch) components
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-api-svc.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-sts.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster-indexer-svc.yaml
+
+  # Dashboard components
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-deploy.yaml
+  - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-svc.yaml
+
+  # Manager components
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-sts.yaml
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-sts.yaml
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-cluster-svc.yaml
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-svc.yaml
+  - wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-svc.yaml
+
+  # Secrets
+  - wazuh-kubernetes/wazuh/secrets/wazuh-api-cred-secret.yaml
+  - wazuh-kubernetes/wazuh/secrets/wazuh-authd-pass-secret.yaml
+  - wazuh-kubernetes/wazuh/secrets/wazuh-cluster-key-secret.yaml
+  - wazuh-kubernetes/wazuh/secrets/dashboard-cred-secret.yaml
+  - wazuh-kubernetes/wazuh/secrets/indexer-cred-secret.yaml
+
+  # Custom resources for production
+  - production-overlay/manager-loadbalancers.yaml
+  - production-overlay/ingress.yaml
+
+# Generate indexer credentials from internal_users.yml
+secretGenerator:
+  - name: wazuh-indexer-cred
+    namespace: wazuh
+    behavior: replace
+    files:
+      - production-overlay/internal_users.yml
+    options:
+      disableNameSuffixHash: true
+
+# Patches to customize the deployment
+patches:
+  # Convert default LoadBalancer services to ClusterIP
+  - path: production-overlay/service-patches.yaml
+    target:
+      kind: Service
+      version: v1
+
+  # Resource limits for manager master
+  - path: production-overlay/manager-master-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-manager-master
+
+  # Resource limits for manager workers
+  - path: production-overlay/manager-worker-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-manager-worker
+
+  # Resource limits for indexer
+  - path: production-overlay/indexer-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-indexer
+
+  # Resource limits for dashboard
+  - path: production-overlay/dashboard-resources.yaml
+    target:
+      kind: Deployment
+      name: wazuh-dashboard
+
+# Labels applied to all resources
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: wazuh
+  deployment: akamai-quickstart
+
+# Annotations applied to all resources
+commonAnnotations:
+  deployment.kubernetes.io/revision: "1"
+  documentation: "https://github.com/johnybradshaw/akamai-wazuh"
+
+# Images (can be overridden for specific versions)
+images:
+  - name: wazuh/wazuh-indexer
+    newTag: 4.9.2
+  - name: wazuh/wazuh-manager
+    newTag: 4.9.2
+  - name: wazuh/wazuh-dashboard
+    newTag: 4.9.2
+
+# Configuration for replica counts
+replicas:
+  - name: wazuh-manager-worker
+    count: 2
+  - name: wazuh-indexer
+    count: 3
