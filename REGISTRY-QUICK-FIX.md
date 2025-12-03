@@ -3,7 +3,31 @@
 ## Problem
 PolicyExceptions are **not enabled** in your Kyverno installation, so the exception approach won't work. You must use an approved container registry.
 
-## Solution: Mirror Images to Approved Registry
+## ⭐ Recommended Solution: Harbor Proxy Project
+
+**Best Option:** If your organization uses Harbor, use a **proxy project** for automatic pull-through caching. No manual mirroring needed!
+
+```bash
+# One command setup (replace with your Harbor URL)
+./scripts/update-registry.sh harbor.company.com/dockerhub-proxy/wazuh --proxy
+
+# Deploy
+kubectl apply -k kubernetes/
+```
+
+**Benefits:**
+- ✅ No manual mirroring
+- ✅ Automatic updates
+- ✅ Zero maintenance
+- ✅ Meets compliance requirements
+
+See detailed guide: [Harbor Proxy Setup](docs/HARBOR-PROXY-SETUP.md)
+
+---
+
+## Alternative: Manual Mirror to Registry
+
+If you don't have Harbor proxy or prefer manual control:
 
 ### Step 1: Find Your Approved Registry
 
