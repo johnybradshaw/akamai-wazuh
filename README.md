@@ -526,6 +526,17 @@ kubectl rollout restart statefulset/wazuh-indexer -n wazuh
 
 **Detailed troubleshooting:** See [docs/TROUBLESHOOTING-INDEXER-SSL.md](docs/TROUBLESHOOTING-INDEXER-SSL.md)
 
+#### Indexer Security Not Initialized
+If you see "Not yet initialized (you may need to run securityadmin)" in the indexer logs:
+
+**Quick Fix:**
+```bash
+# Initialize security configuration
+./scripts/init-security.sh
+```
+
+This initializes the OpenSearch security plugin and creates the security index. See the troubleshooting guide for details.
+
 #### DNS Not Resolving
 ```bash
 # Check ExternalDNS logs

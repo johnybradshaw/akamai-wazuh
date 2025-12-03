@@ -174,6 +174,48 @@ echo "Now run: kubectl rollout restart statefulset/wazuh-indexer -n wazuh"
 
 ## Related Issues
 
+### Security Not Initialized Error
+
+After fixing certificate issues, you may see:
+```
+[ERROR][o.o.s.a.BackendRegistry] Not yet initialized (you may need to run securityadmin)
+```
+
+This means the OpenSearch security plugin needs to be initialized.
+
+**Quick Fix:**
+```bash
+# Run the security initialization script
+./scripts/init-security.sh
+
+# Or manually run securityadmin
+kubectl exec -n wazuh wazuh-indexer-0 -- bash -c '
+  cd /usr/share/wazuh-indexer/plugins/opensearch-security/tools && \
+  JAVA_HOME=/usr/share/wazuh-indexer/jdk bash securityadmin.sh \
+    -cd /usr/share/wazuh-indexer/config/opensearch-security \
+    -icl -nhnv \
+    -cacert /usr/share/wazuh-indexer/config/certs/root-ca.pem \
+    -cert /usr/share/wazuh-indexer/config/certs/admin.pem \
+    -key /usr/share/wazuh-indexer/config/certs/admin-key.pem \
+    -h localhost
+'
+```
+
+**Why this happens:**
+- The security plugin requires initialization on first startup
+- The `internal_users.yml` and other security configs need to be loaded
+- The security index (`.opendistro_security`) needs to be created
+
+**Auto-initialization:**
+The indexer is configured with `plugins.security.allow_default_init_securityindex: true`, which should auto-initialize. However, this only works if:
+- All cluster nodes are healthy
+- Certificates are valid
+- The cluster has reached quorum
+
+If auto-initialization fails, run the script above to manually initialize.
+
+### Other Common Issues
+
 - If you see "certificate verify failed" errors, the root CA might not be trusted
 - If you see "hostname verification failed", check that certificate CN matches service names
 - If pods still won't start, check resource limits and node capacity
