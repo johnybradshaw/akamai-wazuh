@@ -512,6 +512,20 @@ kubectl logs -n wazuh <pod-name>
 kubectl describe nodes
 ```
 
+#### Indexer SSL/TLS Errors
+If the Wazuh indexer fails to start with SSL/TLS errors like `javax.crypto.BadPaddingException`, the TLS certificates are likely missing or corrupted.
+
+**Quick Fix:**
+```bash
+# Regenerate certificates
+./scripts/regenerate-certs.sh
+
+# Restart indexer
+kubectl rollout restart statefulset/wazuh-indexer -n wazuh
+```
+
+**Detailed troubleshooting:** See [docs/TROUBLESHOOTING-INDEXER-SSL.md](docs/TROUBLESHOOTING-INDEXER-SSL.md)
+
 #### DNS Not Resolving
 ```bash
 # Check ExternalDNS logs
