@@ -13,18 +13,22 @@
 # - localhost
 #
 # This fixes the "x509: certificate is valid for X, not Y" errors.
+#
+# Usage: Run this script from the directory where you want certificates generated
+# Example: cd /path/to/certs && bash /path/to/this/script.sh
 # ============================================================================
 
 set -euo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd "$DIR"
+# Generate certificates in the current working directory (where script is called from)
+# Do NOT change to the script's directory
 
 echo "Generating Wazuh Indexer certificates with Subject Alternative Names..."
+echo "Target directory: $(pwd)"
 echo ""
 
 # Clean up old certificates
-rm -f *.pem *.csr *.srl
+rm -f *.pem *.csr *.srl *.cnf
 
 # ============================================================================
 # Root CA

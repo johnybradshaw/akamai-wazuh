@@ -410,8 +410,18 @@ if [[ "$SKIP_CERTS" == "false" ]]; then
         # Use improved certificate generation script with SANs
         if [[ -f "$SCRIPT_DIR/scripts/generate-indexer-certs-with-sans.sh" ]]; then
             log_info "Using improved certificate generation (with Subject Alternative Names)"
-            bash "$SCRIPT_DIR/scripts/generate-indexer-certs-with-sans.sh"
-            log_success "Indexer certificates generated with SANs"
+            if bash "$SCRIPT_DIR/scripts/generate-indexer-certs-with-sans.sh"; then
+                # Verify certificates were created
+                if [[ -f "root-ca.pem" && -f "node.pem" && -f "node-key.pem" ]]; then
+                    log_success "Indexer certificates generated with SANs"
+                else
+                    log_error "Certificate generation completed but files are missing"
+                    exit 1
+                fi
+            else
+                log_error "Certificate generation failed"
+                exit 1
+            fi
         else
             log_warning "Improved script not found, using default generation"
             bash generate_certs.sh

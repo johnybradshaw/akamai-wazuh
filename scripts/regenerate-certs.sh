@@ -77,8 +77,12 @@ fi
 # Use our improved certificate generation script with SANs
 if [ -f "$SCRIPT_DIR/generate-indexer-certs-with-sans.sh" ]; then
     log_info "Using improved certificate generation (with Subject Alternative Names)..."
-    bash "$SCRIPT_DIR/generate-indexer-certs-with-sans.sh" > /dev/null 2>&1
-    log_success "Indexer certificates generated with SANs"
+    if bash "$SCRIPT_DIR/generate-indexer-certs-with-sans.sh"; then
+        log_success "Indexer certificates generated with SANs"
+    else
+        log_error "Certificate generation failed"
+        exit 1
+    fi
 else
     log_warning "Improved script not found, using default generation..."
     if [ -f "generate_certs.sh" ]; then
