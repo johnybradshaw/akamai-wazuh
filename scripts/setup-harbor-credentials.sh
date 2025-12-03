@@ -50,19 +50,31 @@ SECRET_NAME="harbor-credentials"
 
 # Get Harbor credentials
 if [[ -z "${HARBOR_URL:-}" ]]; then
-    echo -n "Harbor URL (e.g., harbor.lke540223.akamai-apl.net): "
+    echo -n "Harbor URL (e.g., harbor.company.com): "
     read -r HARBOR_URL
+    if [[ -z "$HARBOR_URL" ]]; then
+        log_error "Harbor URL is required"
+        exit 1
+    fi
 fi
 
 if [[ -z "${HARBOR_USERNAME:-}" ]]; then
     echo -n "Harbor Username: "
     read -r HARBOR_USERNAME
+    if [[ -z "$HARBOR_USERNAME" ]]; then
+        log_error "Harbor username is required"
+        exit 1
+    fi
 fi
 
 if [[ -z "${HARBOR_PASSWORD:-}" ]]; then
     echo -n "Harbor Password: "
     read -rs HARBOR_PASSWORD
     echo ""
+    if [[ -z "$HARBOR_PASSWORD" ]]; then
+        log_error "Harbor password is required"
+        exit 1
+    fi
 fi
 
 if [[ -z "${HARBOR_EMAIL:-}" ]]; then

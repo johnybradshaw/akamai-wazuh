@@ -6,7 +6,7 @@ If you're seeing `ImagePullBackOff` or `ErrImagePull` errors, it means Kubernete
 
 ```
 Error: ImagePullBackOff
-Failed to pull image "harbor.lke540223.akamai-apl.net/wazuh/wazuh-indexer:4.14.1":
+Failed to pull image "harbor.company.com/wazuh/wazuh-indexer:4.14.1":
 rpc error: code = Unknown desc = failed to pull and unpack image:
 failed to resolve reference: pull access denied
 ```
@@ -33,7 +33,7 @@ If you prefer manual setup or the script doesn't work:
 
 ```bash
 # Set your Harbor details
-HARBOR_URL="harbor.lke540223.akamai-apl.net"
+HARBOR_URL="harbor.company.com"
 HARBOR_USERNAME="your-username"
 HARBOR_PASSWORD="your-password"
 
@@ -105,7 +105,7 @@ Robot accounts are service accounts designed for automated access. They're more 
 
 ```bash
 # Robot account format: robot$<account-name>
-HARBOR_URL="harbor.lke540223.akamai-apl.net"
+HARBOR_URL="harbor.company.com"
 ROBOT_NAME="robot\$wazuh-puller"
 ROBOT_TOKEN="<paste-token-here>"
 
@@ -131,7 +131,7 @@ For automation, use environment variables:
 
 ```bash
 # Set credentials
-export HARBOR_URL="harbor.lke540223.akamai-apl.net"
+export HARBOR_URL="harbor.company.com"
 export HARBOR_USERNAME="admin"
 export HARBOR_PASSWORD="your-password"
 
@@ -162,8 +162,8 @@ export HARBOR_PASSWORD="your-password"
 
 1. **Test credentials manually:**
    ```bash
-   docker login harbor.lke540223.akamai-apl.net -u <username>
-   docker pull harbor.lke540223.akamai-apl.net/wazuh/wazuh-indexer:4.14.1
+   docker login harbor.company.com -u <username>
+   docker pull harbor.company.com/wazuh/wazuh-indexer:4.14.1
    ```
 
 2. **Check pod events:**
@@ -191,7 +191,7 @@ kubectl delete secret harbor-credentials -n wazuh
 
 # Recreate with correct format
 kubectl create secret docker-registry harbor-credentials \
-  --docker-server="harbor.lke540223.akamai-apl.net" \
+  --docker-server="harbor.company.com" \
   --docker-username="admin" \
   --docker-password="Harbor12345" \
   -n wazuh
@@ -269,7 +269,7 @@ kubectl get events -n wazuh --watch | grep -i "pull\|image"
 #!/bin/bash
 # update-harbor-secret.sh
 
-HARBOR_URL="harbor.lke540223.akamai-apl.net"
+HARBOR_URL="harbor.company.com"
 HARBOR_USERNAME="robot\$wazuh-puller"
 NEW_TOKEN="$1"
 
