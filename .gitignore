@@ -1,9 +1,125 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Git Ignore
+# ============================================================================
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Configuration files (contain secrets)
 config.env
 **/vm-list.txt
 **/.credentials
 
-# Deployment generated files
+# ============================================================================
+# Deployment Generated Files
+# ============================================================================
+
+# Main deployment log
 deploy.log
+*.log
+
+# Wazuh Kubernetes repository (cloned during deployment)
 kubernetes/wazuh-kubernetes/
+
+# Generated credentials and secrets
 kubernetes/production-overlay/internal_users.yml
+kubernetes/production-overlay/.credentials
+
+# Backup files from sed operations
+*.bak
+*.yaml.bak
+*.yml.bak
+
+# Certificate files (if generated outside wazuh-kubernetes)
+*.pem
+*.key
+*.crt
+*.csr
+!*.example.pem
+!*.example.key
+
+# ============================================================================
+# Agent Deployment Generated Files
+# ============================================================================
+
+# Bulk agent deployment logs
+agent-deployment/logs/
+agent-deployment/*.log
+
+# ============================================================================
+# Kubernetes & Kubectl
+# ============================================================================
+
+# Kubeconfig files
+kubeconfig
+*.kubeconfig
+.kube/
+
+# Kubectl cache
+.kubectl_cache/
+
+# ============================================================================
+# Terraform (if added in the future)
+# ============================================================================
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Terraform variables (may contain secrets)
+terraform.tfvars
+*.auto.tfvars
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# Temporary & Runtime Files
+# ============================================================================
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
+
+# Cache
+.cache/
+*.cache
+
+# OS generated files
+Thumbs.db
+Desktop.ini
