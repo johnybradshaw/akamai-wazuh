@@ -530,16 +530,17 @@ while [[ $ELAPSED -lt $DEPLOYMENT_TIMEOUT ]]; do
     RUNNING_PODS=$(kubectl get pods -n "$WAZUH_NAMESPACE" --no-headers 2>/dev/null | grep -c "Running" || true)
 
     if [[ $TOTAL_PODS -gt 0 ]] && [[ $RUNNING_PODS -eq $TOTAL_PODS ]]; then
+        echo "" # Clear the progress line
         log_success "All pods are running ($RUNNING_PODS/$TOTAL_PODS)"
         break
     fi
 
-    echo -ne "  Pods: $RUNNING_PODS/$TOTAL_PODS running... ${ELAPSED}s elapsed\r"
+    printf "\r  Pods: %d/%d running... %ds elapsed" "$RUNNING_PODS" "$TOTAL_PODS" "$ELAPSED"
     sleep 10
     ELAPSED=$((ELAPSED + 10))
 done
 
-echo ""
+echo "" # Clear the progress line
 
 if [[ $ELAPSED -ge $DEPLOYMENT_TIMEOUT ]]; then
     log_error "Timeout waiting for pods to start"
@@ -559,23 +560,32 @@ while [[ $ELAPSED -lt 300 ]]; do
     INDEXER_TOTAL=$(kubectl get pods -n "$WAZUH_NAMESPACE" -l app=wazuh-indexer --no-headers 2>/dev/null | wc -l)
 
     if [[ $INDEXER_READY -eq $INDEXER_TOTAL ]] && [[ $INDEXER_TOTAL -gt 0 ]]; then
+        echo "" # Clear the progress line
         log_success "All indexer pods are ready ($INDEXER_READY/$INDEXER_TOTAL)"
         break
     fi
 
-    echo -ne "  Indexer pods: $INDEXER_READY/$INDEXER_TOTAL ready... ${ELAPSED}s elapsed\r"
+    printf "\r  Indexer pods: %d/%d ready... %ds elapsed" "$INDEXER_READY" "$INDEXER_TOTAL" "$ELAPSED"
     sleep 5
     ELAPSED=$((ELAPSED + 5))
 done
 
-echo ""
+echo "" # Clear the progress line
 
 if [[ $ELAPSED -ge 300 ]]; then
-    log_warning "Timeout waiting for indexer pods, continuing anyway..."
+    log_warning "Timeout waiting for indexer pods to become ready"
+    log_info "Checking pod status..."
+    kubectl get pods -n "$WAZUH_NAMESPACE" -l app=wazuh-indexer
+    log_warning "Continuing anyway - you may need to run: ./scripts/init-security.sh manually later"
 fi
 
-# Run securityadmin to initialize the security plugin
-log_info "Running securityadmin to initialize security plugin..."
+# Only run securityadmin if at least one indexer pod is ready
+INDEXER_READY=$(kubectl get pods -n "$WAZUH_NAMESPACE" -l app=wazuh-indexer \
+    -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -o "True" | wc -l)
+
+if [[ $INDEXER_READY -gt 0 ]]; then
+    # Run securityadmin to initialize the security plugin
+    log_info "Running securityadmin to initialize security plugin..."
 
 SECURITYADMIN_CMD='
 cd /usr/share/wazuh-indexer/plugins/opensearch-security/tools && \
@@ -589,11 +599,15 @@ JAVA_HOME=/usr/share/wazuh-indexer/jdk bash securityadmin.sh \
   -h localhost
 '
 
-if kubectl exec -n "$WAZUH_NAMESPACE" wazuh-indexer-0 -- bash -c "$SECURITYADMIN_CMD" > /dev/null 2>&1; then
-    log_success "Security configuration initialized successfully"
+    if kubectl exec -n "$WAZUH_NAMESPACE" wazuh-indexer-0 -- bash -c "$SECURITYADMIN_CMD" > /dev/null 2>&1; then
+        log_success "Security configuration initialized successfully"
+    else
+        log_warning "Security initialization may have failed, but continuing..."
+        log_info "You can manually initialize later with: ./scripts/init-security.sh"
+    fi
 else
-    log_warning "Security initialization may have failed, but continuing..."
-    log_info "You can manually initialize later with: ./scripts/init-security.sh"
+    log_warning "No indexer pods are ready, skipping security initialization"
+    log_info "Run manually after pods are ready: ./scripts/init-security.sh"
 fi
 
 # Wait for LoadBalancers to get external IPs
