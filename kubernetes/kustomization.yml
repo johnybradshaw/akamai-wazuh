@@ -1,0 +1,139 @@
+# ============================================================================
+# Akamai Cloud Wazuh Quick-Start - Main Kustomization
+# ============================================================================
+# This kustomization uses the wazuh-kubernetes base configuration and applies
+# production overlay customizations for Akamai Cloud deployment.
+#
+# IMPORTANT: Certificates must be generated before deployment!
+# Run: bash kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster/generate_certs.sh
+#      bash kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http/generate_certs.sh
+#
+# Run with: kubectl apply -k kubernetes/
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace for all resources
+namespace: wazuh
+
+# Use wazuh-kubernetes base configuration
+# This includes all StatefulSets, Deployments, Services, and generators
+# for ConfigMaps (wazuh-conf, indexer-conf, dashboard-conf) and
+# certificate Secrets (indexer-certs, dashboard-certs)
+resources:
+  - wazuh-kubernetes/wazuh
+  - production-overlay/manager-loadbalancers.yaml
+  - production-overlay/ingress.yaml
+
+# NOTE: Using default credentials from base wazuh-kubernetes
+# For custom passwords, you need to:
+#   1. Generate internal_users.yml with hashed passwords (for indexer auth database)
+#   2. Create matching indexer-cred secret with plain passwords (for services to auth)
+#   3. Override both the configMapGenerator and the base secret
+# Currently using defaults: username=admin, password=SecretPassword
+
+# Generate certificate secrets from generated cert files
+secretGenerator:
+  - name: indexer-certs
+    namespace: wazuh
+    behavior: replace
+    files:
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/node.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/node-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/admin.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/admin-key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat-key.pem
+    options:
+      disableNameSuffixHash: true
+  - name: dashboard-certs
+    namespace: wazuh
+    behavior: replace
+    files:
+      - wazuh-kubernetes/wazuh/certs/dashboard_http/cert.pem
+      - wazuh-kubernetes/wazuh/certs/dashboard_http/key.pem
+      - wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+    options:
+      disableNameSuffixHash: true
+
+# Generate ConfigMaps from configuration files
+configMapGenerator:
+  - name: indexer-conf
+    namespace: wazuh
+    behavior: replace
+    files:
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/opensearch.yml
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/internal_users.yml
+    options:
+      disableNameSuffixHash: true
+  - name: wazuh-conf
+    namespace: wazuh
+    behavior: replace
+    files:
+      - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/master.conf
+      - wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/worker.conf
+    options:
+      disableNameSuffixHash: true
+  - name: dashboard-conf
+    namespace: wazuh
+    behavior: replace
+    files:
+      - wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard_conf/opensearch_dashboards.yml
+    options:
+      disableNameSuffixHash: true
+
+# Patches to customize the deployment
+patches:
+  # Storage class for Akamai Cloud (Linode Block Storage)
+  - path: production-overlay/storage-class-patch.yaml
+    target:
+      kind: StorageClass
+      name: wazuh-storage
+
+  # Convert default LoadBalancer services to ClusterIP
+  # Note: service-patches.yaml contains multiple patches with inline targets
+  - path: production-overlay/service-patches.yaml
+
+  # Resource limits for manager master
+  - path: production-overlay/manager-master-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-manager-master
+
+  # Resource limits for manager workers
+  - path: production-overlay/manager-worker-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-manager-worker
+
+  # Resource limits for indexer
+  - path: production-overlay/indexer-resources.yaml
+    target:
+      kind: StatefulSet
+      name: wazuh-indexer
+
+  # Resource limits for dashboard
+  - path: production-overlay/dashboard-resources.yaml
+    target:
+      kind: Deployment
+      name: wazuh-dashboard
+
+# Images (can be overridden for specific versions)
+images:
+  - name: wazuh/wazuh-indexer
+    newTag: 4.14.1
+  - name: wazuh/wazuh-manager
+    newTag: 4.14.1
+  - name: wazuh/wazuh-dashboard
+    newTag: 4.14.1
+
+# Configuration for replica counts
+replicas:
+  - name: wazuh-manager-worker
+    count: 2
+  - name: wazuh-indexer
+    count: 3
