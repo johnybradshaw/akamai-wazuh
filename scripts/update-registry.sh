@@ -170,8 +170,8 @@ fi
 echo ""
 log_info "Updated image configuration:"
 echo ""
-# Extract images section (works on both Linux and macOS)
-awk '/^images:/,/^[a-z]/ {if (/^[a-z]/ && !/^images:/) exit; print}' "$KUSTOMIZATION_FILE"
+# Extract images section - show from "images:" to the next non-indented section
+sed -n '/^images:/,/^[a-z][^:]*:/p' "$KUSTOMIZATION_FILE" | sed '$d'
 echo ""
 
 # ============================================================================
@@ -201,7 +201,7 @@ if [[ "$IS_PROXY" == "true" ]]; then
     echo ""
     log_info "Next Steps:"
     echo "  1. Deploy the updated configuration:"
-    echo "     ${CYAN}kubectl apply -k kubernetes/${NC}"
+    echo -e "     ${CYAN}kubectl apply -k kubernetes/${NC}"
     echo ""
     echo "  2. Harbor will automatically pull and cache images on first use"
     echo ""
@@ -210,19 +210,19 @@ else
     echo ""
     log_info "Next Steps:"
     echo "  1. Verify images exist in your registry:"
-    echo "     ${CYAN}docker pull ${REGISTRY}/wazuh-indexer:${VERSION}${NC}"
-    echo "     ${CYAN}docker pull ${REGISTRY}/wazuh-manager:${VERSION}${NC}"
-    echo "     ${CYAN}docker pull ${REGISTRY}/wazuh-dashboard:${VERSION}${NC}"
+    echo -e "     ${CYAN}docker pull ${REGISTRY}/wazuh-indexer:${VERSION}${NC}"
+    echo -e "     ${CYAN}docker pull ${REGISTRY}/wazuh-manager:${VERSION}${NC}"
+    echo -e "     ${CYAN}docker pull ${REGISTRY}/wazuh-dashboard:${VERSION}${NC}"
     echo ""
     echo "  2. Deploy the updated configuration:"
-    echo "     ${CYAN}kubectl apply -k kubernetes/${NC}"
+    echo -e "     ${CYAN}kubectl apply -k kubernetes/${NC}"
     echo ""
 fi
 
 echo "  3. Verify deployment:"
-echo "     ${CYAN}kubectl get pods -n wazuh${NC}"
-echo "     ${CYAN}kubectl get events -n wazuh | grep -i policy${NC}"
+echo -e "     ${CYAN}kubectl get pods -n wazuh${NC}"
+echo -e "     ${CYAN}kubectl get events -n wazuh | grep -i policy${NC}"
 echo ""
 log_info "Backup saved: $BACKUP_FILE"
-log_info "Rollback: ${CYAN}mv $BACKUP_FILE $KUSTOMIZATION_FILE${NC}"
+echo -e "${BLUE}ℹ${NC} Rollback: ${CYAN}mv $BACKUP_FILE $KUSTOMIZATION_FILE${NC}"
 echo ""
