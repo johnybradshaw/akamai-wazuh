@@ -214,10 +214,51 @@ The indexer is configured with `plugins.security.allow_default_init_securityinde
 
 If auto-initialization fails, run the script above to manually initialize.
 
+### Certificate Hostname Verification Errors
+
+If you see errors like:
+```
+x509: certificate is valid for demo.indexer, not indexer
+Failed to connect: certificate is valid for X, not Y
+```
+
+This means the certificate doesn't include the correct hostname in its Subject Alternative Names (SANs).
+
+**Root Cause:**
+Modern TLS requires certificates to have SANs (Subject Alternative Names) for hostname verification. The CN (Common Name) field alone is not sufficient.
+
+**Solution:**
+The certificates need to be regenerated with proper SANs that include all service names:
+- `indexer` (Kubernetes service name)
+- `wazuh-indexer` (StatefulSet service name)
+- `wazuh-indexer-0`, `wazuh-indexer-1`, `wazuh-indexer-2` (pod names)
+- Fully qualified domain names
+
+**Quick Fix:**
+```bash
+# Regenerate certificates with proper SANs
+./scripts/regenerate-certs.sh
+
+# Delete old secrets
+kubectl delete secret -n wazuh indexer-certs dashboard-certs
+
+# Redeploy with new certificates
+kubectl apply -k kubernetes/
+
+# Restart pods
+kubectl rollout restart statefulset/wazuh-indexer -n wazuh
+kubectl rollout restart deployment/wazuh-dashboard -n wazuh
+kubectl rollout restart statefulset/wazuh-manager-master -n wazuh
+kubectl rollout restart statefulset/wazuh-manager-worker -n wazuh
+```
+
+The `regenerate-certs.sh` script now uses an improved certificate generation process (`generate-indexer-certs-with-sans.sh`) that includes all necessary SANs.
+
+**Note:** New deployments using `./deploy.sh` automatically use the improved certificate generation.
+
 ### Other Common Issues
 
 - If you see "certificate verify failed" errors, the root CA might not be trusted
-- If you see "hostname verification failed", check that certificate CN matches service names
 - If pods still won't start, check resource limits and node capacity
 
 ## Additional Resources

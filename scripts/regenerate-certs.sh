@@ -57,8 +57,8 @@ else
     log_success "Repository cloned successfully"
 fi
 
-# Step 2: Generate indexer cluster certificates
-log_info "Generating indexer cluster certificates..."
+# Step 2: Generate indexer cluster certificates with SANs
+log_info "Generating indexer cluster certificates with SANs..."
 INDEXER_CERT_DIR="$WAZUH_K8S_DIR/wazuh/certs/indexer_cluster"
 
 if [ ! -d "$INDEXER_CERT_DIR" ]; then
@@ -67,19 +67,28 @@ if [ ! -d "$INDEXER_CERT_DIR" ]; then
 fi
 
 cd "$INDEXER_CERT_DIR"
-if [ ! -f "generate_certs.sh" ]; then
-    log_error "Certificate generation script not found: $INDEXER_CERT_DIR/generate_certs.sh"
-    exit 1
-fi
 
 # Remove old certificates if they exist
 if [ -f "root-ca.pem" ]; then
     log_warning "Removing existing indexer certificates..."
-    rm -f *.pem *.csr
+    rm -f *.pem *.csr *.cnf *.srl
 fi
 
-bash generate_certs.sh > /dev/null 2>&1
-log_success "Indexer certificates generated"
+# Use our improved certificate generation script with SANs
+if [ -f "$SCRIPT_DIR/generate-indexer-certs-with-sans.sh" ]; then
+    log_info "Using improved certificate generation (with Subject Alternative Names)..."
+    bash "$SCRIPT_DIR/generate-indexer-certs-with-sans.sh" > /dev/null 2>&1
+    log_success "Indexer certificates generated with SANs"
+else
+    log_warning "Improved script not found, using default generation..."
+    if [ -f "generate_certs.sh" ]; then
+        bash generate_certs.sh > /dev/null 2>&1
+        log_success "Indexer certificates generated (without SANs)"
+    else
+        log_error "No certificate generation script found"
+        exit 1
+    fi
+fi
 
 # Step 3: Generate dashboard HTTP certificates
 log_info "Generating dashboard HTTP certificates..."

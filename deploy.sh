@@ -403,12 +403,20 @@ fi
 if [[ "$SKIP_CERTS" == "false" ]]; then
     log_step "Step 5: Generating TLS Certificates"
 
-    # Generate indexer certificates
-    log_info "Generating Wazuh Indexer certificates..."
+    # Generate indexer certificates with SANs
+    log_info "Generating Wazuh Indexer certificates with SANs..."
     cd "$WAZUH_K8S_DIR/wazuh/certs/indexer_cluster"
     if [[ ! -f "root-ca.pem" ]]; then
-        bash generate_certs.sh
-        log_success "Indexer certificates generated"
+        # Use improved certificate generation script with SANs
+        if [[ -f "$SCRIPT_DIR/scripts/generate-indexer-certs-with-sans.sh" ]]; then
+            log_info "Using improved certificate generation (with Subject Alternative Names)"
+            bash "$SCRIPT_DIR/scripts/generate-indexer-certs-with-sans.sh"
+            log_success "Indexer certificates generated with SANs"
+        else
+            log_warning "Improved script not found, using default generation"
+            bash generate_certs.sh
+            log_success "Indexer certificates generated (WARNING: may not have proper SANs)"
+        fi
     else
         log_warning "Indexer certificates already exist, skipping"
     fi
