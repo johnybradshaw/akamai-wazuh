@@ -36,34 +36,28 @@ spec:
             - name: NODE_OPTIONS
               value: "--max-old-space-size=768"
 
-          # Liveness probe
+          # Liveness probe - use TCP to avoid auth issues
           livenessProbe:
-            httpGet:
-              path: /status
+            tcpSocket:
               port: 5601
-              scheme: HTTPS
             initialDelaySeconds: 90
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
 
-          # Readiness probe
+          # Readiness probe - use TCP to avoid auth issues
           readinessProbe:
-            httpGet:
-              path: /api/status
+            tcpSocket:
               port: 5601
-              scheme: HTTPS
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
 
-          # Startup probe for initial startup
+          # Startup probe - use TCP to avoid auth issues
           startupProbe:
-            httpGet:
-              path: /status
+            tcpSocket:
               port: 5601
-              scheme: HTTPS
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5

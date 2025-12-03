@@ -25,6 +25,8 @@ metadata:
     # ExternalDNS configuration
     external-dns.alpha.kubernetes.io/hostname: "wazuh-registration.${DOMAIN}"
     external-dns.alpha.kubernetes.io/ttl: "300"
+    # Force ExternalDNS to update existing records (overwrites stale entries)
+    external-dns.alpha.kubernetes.io/force-update: "true"
 
     # Linode LoadBalancer annotations (optional, for customization)
     service.beta.kubernetes.io/linode-loadbalancer-throttle: "20"
@@ -70,6 +72,8 @@ metadata:
     # ExternalDNS configuration
     external-dns.alpha.kubernetes.io/hostname: "wazuh-manager.${DOMAIN}"
     external-dns.alpha.kubernetes.io/ttl: "300"
+    # Force ExternalDNS to update existing records (overwrites stale entries)
+    external-dns.alpha.kubernetes.io/force-update: "true"
 
     # Linode LoadBalancer annotations
     service.beta.kubernetes.io/linode-loadbalancer-throttle: "20"

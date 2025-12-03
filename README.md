@@ -6,6 +6,20 @@
 [![Wazuh Version](https://img.shields.io/badge/Wazuh-4.9.2-green.svg)](https://wazuh.com/)
 [![Platform](https://img.shields.io/badge/Platform-Akamai%20Cloud-orange.svg)](https://www.linode.com/products/kubernetes/)
 
+## ⚠️ Disclaimer
+
+**This is an independent, community-driven project and is NOT officially affiliated with, endorsed by, or supported by Wazuh, Inc., Akamai Technologies, Inc., or Linode LLC.**
+
+- All trademarks, service marks, trade names, product names, and logos are the property of their respective owners
+- This project respects all applicable patents and intellectual property rights
+- **Use at your own risk and discretion** - This software is provided "as is" without warranty of any kind
+- The authors and contributors assume no liability for any damages or issues arising from the use of this project
+- Always review and test configurations in a non-production environment before deploying to production
+- For official Wazuh documentation and support, visit [wazuh.com](https://wazuh.com/)
+- For official Akamai Cloud documentation, visit [linode.com/docs](https://www.linode.com/docs/)
+
+By using this project, you acknowledge that you have read this disclaimer and agree to use the software at your own risk.
+
 ## Overview
 
 This quick-start package deploys a complete, enterprise-ready Wazuh SIEM platform on Akamai Cloud Computing in under 10 minutes. It includes:
@@ -184,11 +198,27 @@ The deployment takes approximately 5-10 minutes and will:
 
 #### Step 4: Access Dashboard
 ```bash
-# Credentials are displayed after deployment
+# Default credentials (CHANGE IMMEDIATELY AFTER FIRST LOGIN!)
 Dashboard: https://wazuh.example.com
 Username:  admin
-Password:  <randomly-generated>
+Password:  SecretPassword
 ```
+
+**IMPORTANT SECURITY NOTE:**
+The current deployment uses **default credentials** from the base wazuh-kubernetes repository:
+- Username: `admin`
+- Password: `SecretPassword`
+
+**You MUST change these credentials immediately after first login!**
+
+To change the admin password:
+1. Log into the dashboard with default credentials
+2. Navigate to Security → Internal Users
+3. Edit the `admin` user and set a strong password
+4. Save and log out
+5. Log back in with your new password
+
+Future versions will include automatic random password generation. For now, manual password changes are required for security.
 
 Credentials are also saved to `kubernetes/production-overlay/.credentials`
 
@@ -273,7 +303,7 @@ This checks:
 #### Scale Worker Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change worker replicas
 replicas:
@@ -281,13 +311,13 @@ replicas:
     count: 4  # Increase from 2 to 4
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 #### Scale Indexer Nodes
 ```bash
 # Edit kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change indexer replicas
 replicas:
@@ -295,7 +325,7 @@ replicas:
     count: 5  # Increase from 3 to 5
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ### Resource Limits
@@ -315,7 +345,7 @@ nano kubernetes/production-overlay/indexer-resources.yaml
 nano kubernetes/production-overlay/dashboard-resources.yaml
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ### Storage
@@ -343,7 +373,7 @@ nano kubernetes/production-overlay/manager-master-resources.yaml
 storageClassName: linode-block-storage-retain  # or custom class
 
 # Apply changes
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 ```
 
 ## Monitoring and Operations
@@ -629,7 +659,7 @@ Notes:
 
 ```bash
 # Update image tags in kustomization.yml
-nano kubernetes/production-overlay/kustomization.yml
+nano kubernetes/kustomization.yml
 
 # Change image tags
 images:
@@ -641,7 +671,7 @@ images:
     newTag: 4.9.2
 
 # Apply update
-kubectl apply -k kubernetes/production-overlay/
+kubectl apply -k kubernetes/
 
 # Monitor rollout
 kubectl rollout status statefulset/wazuh-indexer -n wazuh
@@ -665,7 +695,7 @@ Major updates require careful planning:
 
 ```bash
 # Delete Wazuh resources
-kubectl delete -k kubernetes/production-overlay/
+kubectl delete -k kubernetes/
 
 # Delete namespace
 kubectl delete namespace wazuh

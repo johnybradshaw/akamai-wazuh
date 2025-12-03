@@ -490,7 +490,7 @@ fi
 log_step "Step 10: Deploying Wazuh"
 
 log_info "Applying Kustomize configuration..."
-kubectl apply -k "$OVERLAY_DIR"
+kubectl apply -k "$KUSTOMIZE_DIR"
 
 log_success "Wazuh deployment submitted"
 

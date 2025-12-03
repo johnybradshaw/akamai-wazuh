@@ -32,9 +32,9 @@ spec:
 
           # Environment variables for OpenSearch tuning
           env:
-            # Java heap size (50% of container memory limit)
+            # Java heap size (50% of container memory limit, Xms must equal Xmx)
             - name: OPENSEARCH_JAVA_OPTS
-              value: "-Xms1g -Xmx2g"
+              value: "-Xms2g -Xmx2g"
 
             # Disable memory swapping
             - name: bootstrap.memory_lock
@@ -67,12 +67,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
 
-          # Readiness probe
+          # Readiness probe - use TCP instead of HTTP to avoid auth issues
           readinessProbe:
-            httpGet:
-              path: /_cluster/health?local=true
+            tcpSocket:
               port: 9200
-              scheme: HTTPS
             initialDelaySeconds: 90
             periodSeconds: 10
             timeoutSeconds: 5

@@ -2,3 +2,8 @@
 config.env
 **/vm-list.txt
 **/.credentials
+
+# Deployment generated files
+deploy.log
+kubernetes/wazuh-kubernetes/
+kubernetes/production-overlay/internal_users.yml
