@@ -1,0 +1,69 @@
+---
+# ============================================================================
+# Kyverno PolicyException for Wazuh Deployment
+# ============================================================================
+# This PolicyException allows Wazuh pods to use images from the official
+# Wazuh Docker Hub registry, exempting them from the ORCS registry policy.
+#
+# The ORCS policy requires all images to come from approved registries,
+# but Wazuh's official images are only available on Docker Hub.
+#
+# Apply with: kubectl apply -f kubernetes/wazuh-policy-exception.yaml
+# ============================================================================
+
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: wazuh-registry-exception
+  namespace: wazuh
+spec:
+  # Exempt from the ORCS registry validation policy
+  exceptions:
+    - policyName: orcs-compliance-cluster
+      ruleNames:
+        - validate-orcs-registry-cluster
+
+  # Match all Wazuh pods in the wazuh namespace
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+          namespaces:
+            - wazuh
+          names:
+            - "wazuh-*"
+---
+# ============================================================================
+# Alternative: ClusterPolicyException (if namespace-scoped doesn't work)
+# ============================================================================
+# Use this if the above PolicyException doesn't work or if you need
+# cluster-wide exemption for Wazuh deployments
+# ============================================================================
+
+apiVersion: kyverno.io/v2beta1
+kind: ClusterPolicyException
+metadata:
+  name: wazuh-registry-exception-cluster
+spec:
+  # Exempt from the ORCS registry validation policy
+  exceptions:
+    - policyName: orcs-compliance-cluster
+      ruleNames:
+        - validate-orcs-registry-cluster
+
+  # Match Wazuh resources
+  match:
+    any:
+      # Match wazuh namespace
+      - resources:
+          kinds:
+            - Pod
+          namespaces:
+            - wazuh
+      # Match wazuh-agents namespace if using K8s agent deployment
+      - resources:
+          kinds:
+            - Pod
+          namespaces:
+            - wazuh-agents

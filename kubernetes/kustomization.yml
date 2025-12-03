@@ -4,6 +4,9 @@
 # This kustomization uses the wazuh-kubernetes base configuration and applies
 # production overlay customizations for Akamai Cloud deployment.
 #
+# Root kustomization at the kubernetes/ level to avoid Kustomize security
+# restrictions on referencing files outside the kustomization root.
+#
 # IMPORTANT: Certificates must be generated before deployment!
 # Run: bash kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster/generate_certs.sh
 #      bash kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http/generate_certs.sh
@@ -121,6 +124,17 @@ patches:
     target:
       kind: Deployment
       name: wazuh-dashboard
+
+# Labels applied to all resources
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: wazuh
+  deployment: akamai-quickstart
+
+# Annotations applied to all resources
+commonAnnotations:
+  deployment.kubernetes.io/revision: "1"
+  documentation: "https://github.com/johnybradshaw/akamai-wazuh"
 
 # Images (can be overridden for specific versions)
 images:

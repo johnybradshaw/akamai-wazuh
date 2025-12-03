@@ -325,13 +325,38 @@ log_step "Step 3: Verifying Linode DNS Domain"
 
 log_info "Checking if domain '$DOMAIN' exists in Linode DNS..."
 
-DOMAIN_CHECK=$(curl -s -H "Authorization: Bearer $LINODE_API_TOKEN" \
-    "https://api.linode.com/v4/domains" | jq -r ".data[] | select(.domain==\"$DOMAIN\") | .domain")
+# Make API call and capture the full response
+API_RESPONSE=$(curl -s -H "Authorization: Bearer $LINODE_API_TOKEN" \
+    "https://api.linode.com/v4/domains")
+
+# Check if the response contains an error
+if echo "$API_RESPONSE" | jq -e '.errors' &> /dev/null; then
+    ERROR_MSG=$(echo "$API_RESPONSE" | jq -r '.errors[0].reason // "Unknown API error"')
+    log_error "Linode API error: $ERROR_MSG"
+    log_info "Please verify your LINODE_API_TOKEN in config.env"
+    log_info "Token should have 'Domains' Read permission"
+    log_info "Create a token at: https://cloud.linode.com/profile/tokens"
+    exit 1
+fi
+
+# Check if the response has the expected data structure
+if ! echo "$API_RESPONSE" | jq -e '.data' &> /dev/null; then
+    log_error "Unexpected API response format"
+    log_info "Response: $API_RESPONSE"
+    log_info "Please verify your LINODE_API_TOKEN is valid"
+    exit 1
+fi
+
+# Check if the domain exists
+DOMAIN_CHECK=$(echo "$API_RESPONSE" | jq -r ".data[]? | select(.domain==\"$DOMAIN\") | .domain")
 
 if [[ "$DOMAIN_CHECK" == "$DOMAIN" ]]; then
     log_success "Domain '$DOMAIN' found in Linode DNS"
 else
     log_error "Domain '$DOMAIN' not found in Linode DNS"
+    log_info "Available domains:"
+    echo "$API_RESPONSE" | jq -r '.data[]?.domain' | sed 's/^/  - /'
+    echo ""
     log_info "Please ensure your domain is hosted on Linode/Akamai DNS"
     log_info "Visit: https://cloud.linode.com/domains"
     exit 1
@@ -421,8 +446,11 @@ fi
 # ============================================================================
 log_step "Step 7: Generating Secure Credentials"
 
+# Directory for overlay patches and configs
 OVERLAY_DIR="$SCRIPT_DIR/kubernetes/production-overlay"
+# Directory for kustomize execution (one level up to include base resources)
 KUSTOMIZE_DIR="$SCRIPT_DIR/kubernetes"
+
 bash "$SCRIPT_DIR/kubernetes/scripts/generate-credentials.sh" "$OVERLAY_DIR"
 
 log_success "Credentials generated and saved to $OVERLAY_DIR/.credentials"
