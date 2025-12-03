@@ -114,13 +114,13 @@ fi
 log_info "Updating image references..."
 
 # Use Python for more reliable YAML manipulation
-python3 << 'PYEOF'
+python3 << PYEOF
 import sys
 import re
 
-KUSTOMIZATION_FILE = '''$KUSTOMIZATION_FILE'''
-REGISTRY = '''$REGISTRY'''
-VERSION = '''$VERSION'''
+KUSTOMIZATION_FILE = '$KUSTOMIZATION_FILE'
+REGISTRY = '$REGISTRY'
+VERSION = '$VERSION'
 
 # Read the file
 with open(KUSTOMIZATION_FILE, 'r') as f:
