@@ -13,7 +13,8 @@
 #   5. Generates secure random passwords
 #   6. Deploys Wazuh using Kustomize
 #   7. Waits for deployment readiness
-#   8. Displays access information
+#   8. Initializes Wazuh Indexer security configuration
+#   9. Displays access information
 #
 # Usage:
 #   ./deploy.sh [OPTIONS]
@@ -526,6 +527,55 @@ if [[ $ELAPSED -ge $DEPLOYMENT_TIMEOUT ]]; then
     log_error "Timeout waiting for pods to start"
     log_info "Check pod status: kubectl get pods -n $WAZUH_NAMESPACE"
     exit 1
+fi
+
+# Initialize Wazuh Indexer Security
+log_info "Initializing Wazuh Indexer security configuration..."
+
+# Wait for indexer pods to be ready (not just running)
+log_info "Waiting for indexer pods to be ready..."
+ELAPSED=0
+while [[ $ELAPSED -lt 300 ]]; do
+    INDEXER_READY=$(kubectl get pods -n "$WAZUH_NAMESPACE" -l app=wazuh-indexer \
+        -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -o "True" | wc -l)
+    INDEXER_TOTAL=$(kubectl get pods -n "$WAZUH_NAMESPACE" -l app=wazuh-indexer --no-headers 2>/dev/null | wc -l)
+
+    if [[ $INDEXER_READY -eq $INDEXER_TOTAL ]] && [[ $INDEXER_TOTAL -gt 0 ]]; then
+        log_success "All indexer pods are ready ($INDEXER_READY/$INDEXER_TOTAL)"
+        break
+    fi
+
+    echo -ne "  Indexer pods: $INDEXER_READY/$INDEXER_TOTAL ready... ${ELAPSED}s elapsed\r"
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+done
+
+echo ""
+
+if [[ $ELAPSED -ge 300 ]]; then
+    log_warning "Timeout waiting for indexer pods, continuing anyway..."
+fi
+
+# Run securityadmin to initialize the security plugin
+log_info "Running securityadmin to initialize security plugin..."
+
+SECURITYADMIN_CMD='
+cd /usr/share/wazuh-indexer/plugins/opensearch-security/tools && \
+JAVA_HOME=/usr/share/wazuh-indexer/jdk bash securityadmin.sh \
+  -cd /usr/share/wazuh-indexer/config/opensearch-security \
+  -icl \
+  -nhnv \
+  -cacert /usr/share/wazuh-indexer/config/certs/root-ca.pem \
+  -cert /usr/share/wazuh-indexer/config/certs/admin.pem \
+  -key /usr/share/wazuh-indexer/config/certs/admin-key.pem \
+  -h localhost
+'
+
+if kubectl exec -n "$WAZUH_NAMESPACE" wazuh-indexer-0 -- bash -c "$SECURITYADMIN_CMD" > /dev/null 2>&1; then
+    log_success "Security configuration initialized successfully"
+else
+    log_warning "Security initialization may have failed, but continuing..."
+    log_info "You can manually initialize later with: ./scripts/init-security.sh"
 fi
 
 # Wait for LoadBalancers to get external IPs

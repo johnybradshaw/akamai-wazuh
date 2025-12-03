@@ -194,7 +194,8 @@ The deployment takes approximately 5-10 minutes and will:
 5. ✓ Generate secure random passwords
 6. ✓ Deploy Wazuh components
 7. ✓ Wait for readiness and DNS propagation
-8. ✓ Display access credentials
+8. ✓ Initialize Wazuh Indexer security configuration
+9. ✓ Display access credentials
 
 #### Step 4: Access Dashboard
 ```bash
