@@ -114,38 +114,46 @@ fi
 log_info "Updating image references..."
 
 # Use Python for more reliable YAML manipulation
-python3 << EOF
+python3 << 'PYEOF'
 import sys
 import re
 
+KUSTOMIZATION_FILE = '''$KUSTOMIZATION_FILE'''
+REGISTRY = '''$REGISTRY'''
+VERSION = '''$VERSION'''
+
 # Read the file
-with open('$KUSTOMIZATION_FILE', 'r') as f:
+with open(KUSTOMIZATION_FILE, 'r') as f:
     content = f.read()
 
 # Function to update or add newName field
 def update_image(content, image_name, new_registry, version):
-    # Pattern to match the image block
-    pattern = r'(  - name: wazuh/' + image_name + r'\n)(    newName: [^\n]+\n)?(    newTag: [^\n]+)'
+    # Pattern to match the image block with or without existing newName
+    # Group 1: "  - name: wazuh/image-name\n"
+    # Group 2: optional existing "    newName: ...\n"
+    # Group 3: "    newTag: "
+    # Group 4: version number
+    pattern = r'(  - name: wazuh/' + re.escape(image_name) + r'\n)(?:    newName: [^\n]+\n)?(    newTag: )([^\n]+)'
 
-    # Replacement with newName
-    replacement = r'\1    newName: ' + new_registry + '/' + image_name + r'\n    newTag: ' + version
+    # Replacement: add/replace newName and update version
+    replacement = r'\g<1>    newName: ' + new_registry + '/' + image_name + r'\n\g<2>' + version
 
-    # Try to update existing
+    # Apply replacement
     new_content = re.sub(pattern, replacement, content)
 
     return new_content
 
 # Update each image
-content = update_image(content, 'wazuh-indexer', '$REGISTRY', '$VERSION')
-content = update_image(content, 'wazuh-manager', '$REGISTRY', '$VERSION')
-content = update_image(content, 'wazuh-dashboard', '$REGISTRY', '$VERSION')
+content = update_image(content, 'wazuh-indexer', REGISTRY, VERSION)
+content = update_image(content, 'wazuh-manager', REGISTRY, VERSION)
+content = update_image(content, 'wazuh-dashboard', REGISTRY, VERSION)
 
 # Write back
-with open('$KUSTOMIZATION_FILE', 'w') as f:
+with open(KUSTOMIZATION_FILE, 'w') as f:
     f.write(content)
 
 print("Images updated successfully")
-EOF
+PYEOF
 
 if [[ $? -eq 0 ]]; then
     log_success "Kustomization updated"
@@ -162,7 +170,8 @@ fi
 echo ""
 log_info "Updated image configuration:"
 echo ""
-sed -n '/^images:/,/^[a-z]/p' "$KUSTOMIZATION_FILE" | head -n -1
+# Extract images section (works on both Linux and macOS)
+awk '/^images:/,/^[a-z]/ {if (/^[a-z]/ && !/^images:/) exit; print}' "$KUSTOMIZATION_FILE"
 echo ""
 
 # ============================================================================
