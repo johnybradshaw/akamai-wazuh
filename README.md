@@ -194,7 +194,8 @@ The deployment takes approximately 5-10 minutes and will:
 5. ✓ Generate secure random passwords
 6. ✓ Deploy Wazuh components
 7. ✓ Wait for readiness and DNS propagation
-8. ✓ Display access credentials
+8. ✓ Initialize Wazuh Indexer security configuration
+9. ✓ Display access credentials
 
 #### Step 4: Access Dashboard
 ```bash
@@ -511,6 +512,37 @@ kubectl logs -n wazuh <pod-name>
 # Check resource availability
 kubectl describe nodes
 ```
+
+#### Indexer SSL/TLS Errors
+If the Wazuh indexer fails to start with SSL/TLS errors like `javax.crypto.BadPaddingException` or certificate hostname verification errors like `x509: certificate is valid for X, not Y`, the TLS certificates are likely missing, corrupted, or don't have proper Subject Alternative Names (SANs).
+
+**Quick Fix:**
+```bash
+# Regenerate certificates with proper SANs
+./scripts/regenerate-certs.sh
+
+# Delete and recreate secrets
+kubectl delete secret -n wazuh indexer-certs dashboard-certs
+kubectl apply -k kubernetes/
+
+# Restart pods
+kubectl rollout restart statefulset/wazuh-indexer -n wazuh
+```
+
+**Note:** The deployment script (`./deploy.sh`) automatically generates certificates with proper SANs for new deployments.
+
+**Detailed troubleshooting:** See [docs/TROUBLESHOOTING-INDEXER-SSL.md](docs/TROUBLESHOOTING-INDEXER-SSL.md)
+
+#### Indexer Security Not Initialized
+If you see "Not yet initialized (you may need to run securityadmin)" in the indexer logs:
+
+**Quick Fix:**
+```bash
+# Initialize security configuration
+./scripts/init-security.sh
+```
+
+This initializes the OpenSearch security plugin and creates the security index. See the troubleshooting guide for details.
 
 #### DNS Not Resolving
 ```bash
