@@ -16,14 +16,24 @@
 #
 # Usage: Run this script from the directory where you want certificates generated
 # Example: cd /path/to/certs && bash /path/to/this/script.sh
+#
+# Environment Variables:
+#   WAZUH_NAMESPACE   Kubernetes namespace (default: wazuh)
+#
+# Example with custom namespace:
+#   WAZUH_NAMESPACE=my-namespace bash /path/to/this/script.sh
 # ============================================================================
 
 set -euo pipefail
+
+# Configurable namespace (defaults to "wazuh")
+NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
 
 # Generate certificates in the current working directory (where script is called from)
 # Do NOT change to the script's directory
 
 echo "Generating Wazuh Indexer certificates with Subject Alternative Names..."
+echo "Using namespace: $NAMESPACE"
 echo "Target directory: $(pwd)"
 echo ""
 
@@ -99,15 +109,15 @@ DNS.2 = wazuh-indexer
 DNS.3 = wazuh-indexer-0
 DNS.4 = wazuh-indexer-1
 DNS.5 = wazuh-indexer-2
-DNS.6 = wazuh-indexer.wazuh
-DNS.7 = wazuh-indexer.wazuh.svc
-DNS.8 = wazuh-indexer.wazuh.svc.cluster.local
+DNS.6 = wazuh-indexer.${NAMESPACE}
+DNS.7 = wazuh-indexer.${NAMESPACE}.svc
+DNS.8 = wazuh-indexer.${NAMESPACE}.svc.cluster.local
 DNS.9 = wazuh-indexer-0.wazuh-indexer
 DNS.10 = wazuh-indexer-1.wazuh-indexer
 DNS.11 = wazuh-indexer-2.wazuh-indexer
-DNS.12 = wazuh-indexer-0.wazuh-indexer.wazuh.svc.cluster.local
-DNS.13 = wazuh-indexer-1.wazuh-indexer.wazuh.svc.cluster.local
-DNS.14 = wazuh-indexer-2.wazuh-indexer.wazuh.svc.cluster.local
+DNS.12 = wazuh-indexer-0.wazuh-indexer.${NAMESPACE}.svc.cluster.local
+DNS.13 = wazuh-indexer-1.wazuh-indexer.${NAMESPACE}.svc.cluster.local
+DNS.14 = wazuh-indexer-2.wazuh-indexer.${NAMESPACE}.svc.cluster.local
 DNS.15 = localhost
 IP.1 = 127.0.0.1
 EOF
@@ -164,9 +174,9 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = dashboard
 DNS.2 = wazuh-dashboard
-DNS.3 = wazuh-dashboard.wazuh
-DNS.4 = wazuh-dashboard.wazuh.svc
-DNS.5 = wazuh-dashboard.wazuh.svc.cluster.local
+DNS.3 = wazuh-dashboard.${NAMESPACE}
+DNS.4 = wazuh-dashboard.${NAMESPACE}.svc
+DNS.5 = wazuh-dashboard.${NAMESPACE}.svc.cluster.local
 DNS.6 = localhost
 IP.1 = 127.0.0.1
 EOF

@@ -11,6 +11,7 @@
 # Options:
 #   --namespace NAME    Kubernetes namespace (default: wazuh)
 #   --pod NAME          Specific pod to run on (default: wazuh-indexer-0)
+#   --password PASS     Admin password (will prompt if not provided)
 #   --help              Show this help message
 #
 # What this script does:
@@ -32,6 +33,7 @@ NC='\033[0m' # No Color
 # Default values
 NAMESPACE="wazuh"
 POD_NAME="wazuh-indexer-0"
+ADMIN_PASSWORD=""
 
 log_info() { echo -e "${BLUE}ℹ${NC} $1"; }
 log_success() { echo -e "${GREEN}✓${NC} $1"; }
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             POD_NAME="$2"
             shift 2
             ;;
+        --password)
+            ADMIN_PASSWORD="$2"
+            shift 2
+            ;;
         --help)
             sed -n '2,20p' "$0" | sed 's/^# //; s/^#//'
             exit 0
@@ -60,6 +66,17 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Prompt for password if not provided
+if [[ -z "$ADMIN_PASSWORD" ]]; then
+    read -s -p "Enter admin password for user 'admin': " ADMIN_PASSWORD
+    echo
+fi
+
+if [[ -z "$ADMIN_PASSWORD" ]]; then
+    log_error "Admin password is required."
+    exit 1
+fi
 
 echo -e "\n${GREEN}Wazuh Indexer Security Initialization${NC}\n"
 
@@ -107,7 +124,7 @@ fi
 log_info "Checking if security index exists..."
 
 SECURITY_INDEX_EXISTS=$(kubectl exec -n "$NAMESPACE" "$POD_NAME" -- bash -c \
-    "curl -s -k -u admin:SecretPassword https://localhost:9200/_cat/indices/.opendistro_security 2>/dev/null || echo 'not_found'" || echo "error")
+    "curl -s -k -u admin:$ADMIN_PASSWORD https://localhost:9200/_cat/indices/.opendistro_security 2>/dev/null || echo 'not_found'" || echo "error")
 
 if [[ "$SECURITY_INDEX_EXISTS" != *"not_found"* ]] && [[ "$SECURITY_INDEX_EXISTS" != *"error"* ]]; then
     log_warning "Security index already exists. If you're having issues, you may need to reinitialize."
@@ -153,7 +170,7 @@ fi
 log_info "Verifying security index creation..."
 sleep 5
 
-VERIFY_CMD="curl -s -k -u admin:SecretPassword https://localhost:9200/_cat/indices/.opendistro_security"
+VERIFY_CMD="curl -s -k -u admin:$ADMIN_PASSWORD https://localhost:9200/_cat/indices/.opendistro_security"
 
 if kubectl exec -n "$NAMESPACE" "$POD_NAME" -- bash -c "$VERIFY_CMD" 2>/dev/null | grep -q ".opendistro_security"; then
     log_success "Security index created successfully"
@@ -164,7 +181,7 @@ fi
 # Step 5: Test cluster health
 log_info "Checking cluster health..."
 
-HEALTH_CMD="curl -s -k -u admin:SecretPassword https://localhost:9200/_cluster/health?pretty"
+HEALTH_CMD="curl -s -k -u admin:$ADMIN_PASSWORD https://localhost:9200/_cluster/health?pretty"
 
 if kubectl exec -n "$NAMESPACE" "$POD_NAME" -- bash -c "$HEALTH_CMD" 2>/dev/null; then
     log_success "Cluster is accessible"
@@ -178,4 +195,4 @@ echo "  1. Verify indexer pods are running: ${BLUE}kubectl get pods -n $NAMESPAC
 echo "  2. Check indexer logs: ${BLUE}kubectl logs -n $NAMESPACE $POD_NAME${NC}"
 echo "  3. Test dashboard access: https://wazuh.yourdomain.com"
 echo ""
-log_info "Default credentials: admin / SecretPassword (change after first login)"
+log_info "Username: admin (ensure you change the default password after first login if not already done)"
