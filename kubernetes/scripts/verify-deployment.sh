@@ -39,9 +39,10 @@ CHECK_FAILED=0
 
 # Auto-discover domain from Kubernetes ingress if not set
 if [[ -z "$DOMAIN" ]]; then
-    DISCOVERED_DOMAIN=$(kubectl get ingress -n "$NAMESPACE" -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null | sed 's/^wazuh\.//' || echo "")
+    DISCOVERED_DOMAIN=$(kubectl get ingress wazuh-dashboard-ingress -n "$NAMESPACE" -o jsonpath='{.spec.rules[0].host}' 2>/dev/null | sed 's/^wazuh\.//' || echo "")
     if [[ -n "$DISCOVERED_DOMAIN" ]]; then
-        DOMAIN="$DISCOVERED_DOMAIN"
+        # Sanitize to prevent terminal escape sequence injection
+        DOMAIN="${DISCOVERED_DOMAIN//[$'\e']}"
         log_info "Auto-discovered domain from ingress: $DOMAIN"
     fi
 fi
@@ -208,8 +209,8 @@ if [[ -n "$DOMAIN" ]]; then
         DNS_TOTAL=${#DNS_HOSTS[@]}
 
         for host in "${DNS_HOSTS[@]}"; do
-            if dig +short "$host" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' &>/dev/null; then
-                IP=$(dig +short "$host" | head -1)
+            IP=$(dig +short "$host" | grep -E '^[0-9.]+$|^[0-9a-fA-F:]+$' | grep -v '\.$' | head -1)
+            if [[ -n "$IP" ]]; then
                 echo "  $host: $IP"
                 DNS_PASSED=$((DNS_PASSED + 1))
             else
