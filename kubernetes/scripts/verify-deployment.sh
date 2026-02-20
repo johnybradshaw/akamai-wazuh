@@ -9,6 +9,9 @@
 #   - TLS certificates are issued
 #   - Dashboard is accessible
 #
+# The domain is auto-discovered from the Kubernetes ingress resource
+# if the DOMAIN environment variable is not set.
+#
 # Usage: ./verify-deployment.sh [namespace]
 # ============================================================================
 
@@ -33,6 +36,15 @@ DOMAIN="${DOMAIN:-}"
 TIMEOUT=300
 CHECK_PASSED=0
 CHECK_FAILED=0
+
+# Auto-discover domain from Kubernetes ingress if not set
+if [[ -z "$DOMAIN" ]]; then
+    DISCOVERED_DOMAIN=$(kubectl get ingress -n "$NAMESPACE" -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null | sed 's/^wazuh\.//' || echo "")
+    if [[ -n "$DISCOVERED_DOMAIN" ]]; then
+        DOMAIN="$DISCOVERED_DOMAIN"
+        log_info "Auto-discovered domain from ingress: $DOMAIN"
+    fi
+fi
 
 echo ""
 echo "============================================================================"
@@ -184,32 +196,37 @@ fi
 # 6. Check DNS Records (if domain is set)
 # ============================================================================
 if [[ -n "$DOMAIN" ]]; then
-    log_info "Checking DNS records for domain: $DOMAIN"
-    echo ""
-
-    DNS_HOSTS=("wazuh.$DOMAIN" "wazuh-manager.$DOMAIN" "wazuh-registration.$DOMAIN")
-    DNS_PASSED=0
-    DNS_TOTAL=${#DNS_HOSTS[@]}
-
-    for host in "${DNS_HOSTS[@]}"; do
-        if dig +short "$host" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' &>/dev/null; then
-            IP=$(dig +short "$host" | head -1)
-            echo "  $host: $IP"
-            DNS_PASSED=$((DNS_PASSED + 1))
-        else
-            echo "  $host: <not resolved>"
-        fi
-    done
-
-    echo ""
-
-    if [[ $DNS_PASSED -eq $DNS_TOTAL ]]; then
-        log_success "All DNS records are configured ($DNS_PASSED/$DNS_TOTAL)"
-        CHECK_PASSED=$((CHECK_PASSED + 1))
+    if ! command -v dig &>/dev/null; then
+        log_warning "dig is not installed, skipping DNS check"
+        log_info "Install dig (dnsutils/bind-utils) to enable DNS verification"
     else
-        log_warning "Some DNS records are not configured ($DNS_PASSED/$DNS_TOTAL)"
-        log_info "DNS propagation can take 2-5 minutes"
-        CHECK_FAILED=$((CHECK_FAILED + 1))
+        log_info "Checking DNS records for domain: $DOMAIN"
+        echo ""
+
+        DNS_HOSTS=("wazuh.$DOMAIN" "wazuh-manager.$DOMAIN" "wazuh-registration.$DOMAIN")
+        DNS_PASSED=0
+        DNS_TOTAL=${#DNS_HOSTS[@]}
+
+        for host in "${DNS_HOSTS[@]}"; do
+            if dig +short "$host" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' &>/dev/null; then
+                IP=$(dig +short "$host" | head -1)
+                echo "  $host: $IP"
+                DNS_PASSED=$((DNS_PASSED + 1))
+            else
+                echo "  $host: <not resolved>"
+            fi
+        done
+
+        echo ""
+
+        if [[ $DNS_PASSED -eq $DNS_TOTAL ]]; then
+            log_success "All DNS records are configured ($DNS_PASSED/$DNS_TOTAL)"
+            CHECK_PASSED=$((CHECK_PASSED + 1))
+        else
+            log_warning "Some DNS records are not configured ($DNS_PASSED/$DNS_TOTAL)"
+            log_info "DNS propagation can take 2-5 minutes"
+            CHECK_FAILED=$((CHECK_FAILED + 1))
+        fi
     fi
 else
     log_info "Domain not set, skipping DNS check"
