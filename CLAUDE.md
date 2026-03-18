@@ -66,11 +66,14 @@ akamai-wazuh/
 │   ├── scripts/                 # Automation scripts
 │   └── prompts/                 # Reusable prompt templates
 └── .claude/                     # Claude Code configuration
-    ├── settings.json            # Permissions and hooks
+    ├── settings.json            # Permissions, hooks (shellcheck, sensitive file blocking)
+    ├── agents/                  # Subagent definitions
+    │   └── security-reviewer.md # Security review subagent
     └── skills/                  # Custom skill definitions
         ├── code-review/
         ├── deploy/
-        └── release/
+        ├── release/
+        └── kustomize-validate/  # Overlay sync and version consistency checks
 ```
 
 Each major directory (`kubernetes/`, `scripts/`, `agent-deployment/`) has its own `CLAUDE.md` with module-specific context.

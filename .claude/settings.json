@@ -3,5 +3,28 @@
     "allow": [],
     "deny": []
   },
-  "hooks": {}
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_FILE_PATHS\"; if [ -n \"$file\" ] && echo \"$file\" | grep -q '\\.sh$' && command -v shellcheck >/dev/null 2>&1; then shellcheck \"$file\" 2>&1 || true; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_FILE_PATHS\"; if [ -n \"$file\" ] && echo \"$file\" | grep -qE '(config\\.env|\\.credentials|\\.pem|\\.key|\\.crt)$'; then echo 'BLOCK: Sensitive file — do not edit secrets/certs directly' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
 }
