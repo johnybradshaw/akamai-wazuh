@@ -21,14 +21,19 @@ akamai-wazuh/
 ├── config.env.example           # Configuration template
 ├── README.md                    # User documentation
 ├── REGISTRY-QUICK-FIX.md        # Registry troubleshooting guide
+├── .github/workflows/           # CI/CD
+│   ├── claude.yml               # Claude Code workflow
+│   └── claude-code-review.yml   # Claude Code PR review
 ├── agent-deployment/            # Agent deployment scripts
 │   ├── deploy-agent.sh          # Single VM agent deployment
 │   ├── deploy-k8s-agent.sh      # Kubernetes DaemonSet deployment
 │   ├── deploy-agents-bulk.sh    # Bulk VM deployment
-│   └── vm-list.txt.example      # Example VM list
+│   ├── vm-list.txt.example      # Example VM list
+│   └── README.md                # Agent deployment docs
 ├── kubernetes/                  # Kubernetes manifests
 │   ├── kustomization.yml        # Main kustomize config
 │   ├── wazuh-kubernetes/        # Cloned Wazuh K8s repo (gitignored)
+│   ├── wazuh-policy-exception.yaml  # Policy exception manifest
 │   ├── production-overlay/      # Production customizations
 │   │   ├── kustomization.yml    # Overlay config
 │   │   ├── ingress.yaml         # Dashboard ingress
@@ -36,7 +41,7 @@ akamai-wazuh/
 │   │   ├── *-resources.yaml     # Resource limits
 │   │   ├── service-patches.yaml
 │   │   └── storage-class-patch.yaml
-│   ├── overlays/production/     # Alternative overlay (same content)
+│   ├── overlays/production/     # Alternative overlay (mirrors production-overlay)
 │   └── scripts/
 │       ├── generate-credentials.sh
 │       ├── verify-deployment.sh
@@ -44,12 +49,31 @@ akamai-wazuh/
 ├── scripts/                     # Utility scripts
 │   ├── update-registry.sh       # Registry configuration
 │   ├── mirror-images.sh         # Image mirroring
-│   └── setup-harbor-credentials.sh
-└── docs/                        # Additional documentation
-    ├── HARBOR-AUTHENTICATION.md
-    ├── HARBOR-PROXY-SETUP.md
-    └── REGISTRY-POLICY.md
+│   ├── setup-harbor-credentials.sh
+│   ├── generate-indexer-certs-with-sans.sh  # Indexer cert generation
+│   ├── init-security.sh         # Security initialisation
+│   └── regenerate-certs.sh      # Certificate regeneration
+├── docs/                        # Additional documentation
+│   ├── architecture.md          # High-level architecture overview
+│   ├── decisions/               # Architecture Decision Records
+│   │   └── 001-use-adr-format.md
+│   ├── runbooks/                # Operational runbooks
+│   ├── HARBOR-AUTHENTICATION.md
+│   ├── HARBOR-PROXY-SETUP.md
+│   ├── REGISTRY-POLICY.md
+│   └── TROUBLESHOOTING-INDEXER-SSL.md
+├── tools/                       # Utility tooling
+│   ├── scripts/                 # Automation scripts
+│   └── prompts/                 # Reusable prompt templates
+└── .claude/                     # Claude Code configuration
+    ├── settings.json            # Permissions and hooks
+    └── skills/                  # Custom skill definitions
+        ├── code-review/
+        ├── deploy/
+        └── release/
 ```
+
+Each major directory (`kubernetes/`, `scripts/`, `agent-deployment/`) has its own `CLAUDE.md` with module-specific context.
 
 ## Key Files and Their Purposes
 
@@ -84,6 +108,9 @@ akamai-wazuh/
 | `scripts/update-registry.sh` | Update image registry in kustomization |
 | `scripts/mirror-images.sh` | Mirror images to private registry |
 | `scripts/setup-harbor-credentials.sh` | Configure Harbor authentication |
+| `scripts/generate-indexer-certs-with-sans.sh` | Generate indexer certs with SANs |
+| `scripts/init-security.sh` | Initialise Wazuh security |
+| `scripts/regenerate-certs.sh` | Regenerate TLS certificates |
 
 ## Development Workflow
 
@@ -126,77 +153,24 @@ The `deploy.sh` script performs:
 ### Bash Script Standards
 
 - All scripts use `set -euo pipefail` for strict error handling
-- Color-coded logging functions: `log_info`, `log_success`, `log_warning`, `log_error`
+- Color-coded logging functions: `log_info`, `log_success`, `log_warning`, `log_error` (see any script for implementation)
 - Consistent argument parsing with `--help` support
-- Detailed header comments explaining purpose and usage
-
-### Color Constants
-
-```bash
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'  # No Color
-```
-
-### Logging Functions
-
-```bash
-log_info() { echo -e "${BLUE}ℹ${NC} $1"; }
-log_success() { echo -e "${GREEN}✓${NC} $1"; }
-log_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-log_error() { echo -e "${RED}✗${NC} $1"; }
-```
-
-### Script Structure Pattern
-
-```bash
-#!/bin/bash
-# Header comment block with description and usage
-
-set -euo pipefail
-
-# Color/logging setup
-# Argument parsing
-# Main logic in numbered steps
-# Success output with next steps
-```
+- New scripts should follow the same structure: header comment, `set -euo pipefail`, color/logging setup, argument parsing, numbered steps, success output
 
 ## Kustomize Configuration
 
 ### Image Version Management
 
-Images are managed in `kubernetes/kustomization.yml`:
+Images are managed via `newTag` in kustomization files. **Note:** There are two version references in this repo:
+- `WAZUH_VERSION` in `config.env` / `deploy.sh` — controls which git branch of the Wazuh K8s repo to clone (currently `v4.9.2`)
+- `newTag` in `kubernetes/kustomization.yml` — controls the container image tags (currently `4.14.1` in main kustomization, `4.9.2` in production overlays)
 
-```yaml
-images:
-  - name: wazuh/wazuh-indexer
-    newTag: 4.14.1
-  - name: wazuh/wazuh-manager
-    newTag: 4.14.1
-  - name: wazuh/wazuh-dashboard
-    newTag: 4.14.1
-```
+These may intentionally differ. When updating versions, check both.
 
-### Resource Customization
+### Resource and Replica Configuration
 
-Resource limits are defined in `kubernetes/production-overlay/*-resources.yaml` files:
-- `manager-master-resources.yaml`
-- `manager-worker-resources.yaml`
-- `indexer-resources.yaml`
-- `dashboard-resources.yaml`
-
-### Replica Configuration
-
-```yaml
-replicas:
-  - name: wazuh-manager-worker
-    count: 2
-  - name: wazuh-indexer
-    count: 3
-```
+- Resource limits: `kubernetes/production-overlay/*-resources.yaml` (one per component)
+- Replica counts: configured in `kubernetes/kustomization.yml` under `replicas:`
 
 ## Security Considerations
 
@@ -264,32 +238,14 @@ replicas:
 
 ## Testing and Validation
 
-### Verify Deployment Script Checks
-
-The `verify-deployment.sh` script validates:
-- Namespace exists
-- All pods are running
-- StatefulSets are ready
-- Deployments are ready
-- LoadBalancers have external IPs
-- DNS records resolve
-- TLS certificates are issued
-- Dashboard is accessible
-- PVCs are bound
-
-### Manual Verification Commands
-
 ```bash
-# Pod status
+# Run full deployment verification
+./kubernetes/scripts/verify-deployment.sh [namespace]
+
+# Manual checks
 kubectl get pods -n wazuh
-
-# Service status
 kubectl get svc -n wazuh
-
-# Check logs
 kubectl logs -n wazuh wazuh-manager-master-0
-
-# List agents
 kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 ```
 
@@ -313,26 +269,17 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 | `WORKER_REPLICAS` | `2` | Manager worker count |
 | `INDEXER_REPLICAS` | `3` | Indexer replica count |
 
-## Architecture Notes
+## Architecture
 
-### Wazuh Components
+See [docs/architecture.md](docs/architecture.md) for the full architecture overview and data flow diagram.
 
-- **Manager Master**: Agent registration, API, cluster coordination
-- **Manager Workers**: Event processing, rule execution
-- **Indexer**: OpenSearch-based data storage (3 replicas)
-- **Dashboard**: Web UI for security monitoring
+**Key components:** Manager Master (registration, API) | Manager Workers (event processing) | Indexer (OpenSearch x3) | Dashboard (web UI)
 
-### Infrastructure Services
+**Infrastructure:** nginx-ingress (HTTPS) | cert-manager (Let's Encrypt) | ExternalDNS (Linode DNS)
 
-- **nginx-ingress**: HTTPS ingress controller
-- **cert-manager**: Let's Encrypt TLS certificates
-- **ExternalDNS**: Automatic Linode DNS management
+**Load Balancers:** `wazuh-manager-lb` (port 1515, registration) | `wazuh-workers-lb` (port 1514, events) | nginx-ingress-lb (HTTPS dashboard)
 
-### Load Balancers
-
-- `wazuh-manager-lb`: Agent registration (port 1515)
-- `wazuh-workers-lb`: Agent events (port 1514)
-- nginx-ingress-lb: Dashboard HTTPS access
+Architecture Decision Records are stored in [docs/decisions/](docs/decisions/).
 
 ## Troubleshooting Tips
 
@@ -344,22 +291,14 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 4. **LoadBalancer pending**: Verify LKE cluster has capacity
 5. **Agent not connecting**: Check ports 1514/1515 are open, verify DNS
 
-### Log Locations
+### Key Logs
 
-```bash
-# Dashboard logs
-kubectl logs -n wazuh -l app=wazuh-dashboard
-
-# Manager logs
-kubectl logs -n wazuh wazuh-manager-master-0
-
-# Indexer logs
-kubectl logs -n wazuh wazuh-indexer-0
-
-# Infrastructure
-kubectl logs -n kube-system -l app=external-dns
-kubectl logs -n cert-manager -l app=cert-manager
-```
+- Dashboard: `kubectl logs -n wazuh -l app=wazuh-dashboard`
+- Manager: `kubectl logs -n wazuh wazuh-manager-master-0`
+- Indexer: `kubectl logs -n wazuh wazuh-indexer-0`
+- ExternalDNS: `kubectl logs -n kube-system -l app=external-dns`
+- cert-manager: `kubectl logs -n cert-manager -l app=cert-manager`
+- See also: `docs/TROUBLESHOOTING-INDEXER-SSL.md` for indexer SSL issues
 
 ## Git Workflow
 
