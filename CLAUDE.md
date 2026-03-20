@@ -156,7 +156,7 @@ The `deploy.sh` script performs:
 ### Bash Script Standards
 
 - All scripts use `set -euo pipefail` for strict error handling
-- Color-coded logging functions: `log_info`, `log_success`, `log_warning`, `log_error` (see any script for implementation)
+- Colour-coded logging functions: `log_info`, `log_success`, `log_warning`, `log_error` (see any script for implementation)
 - Consistent argument parsing with `--help` support
 - New scripts should follow the same structure: header comment, `set -euo pipefail`, color/logging setup, argument parsing, numbered steps, success output
 
