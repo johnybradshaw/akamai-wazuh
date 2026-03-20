@@ -20,9 +20,9 @@ jobs:
 
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: read
-      issues: read
+      issues: write
       id-token: write
 
     steps:
