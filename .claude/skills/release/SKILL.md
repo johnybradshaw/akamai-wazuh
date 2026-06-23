@@ -14,7 +14,7 @@ Manages the release process for the Wazuh deployment configuration, including up
 
 | Parameter | Description | Required | Default |
 |-----------|-------------|----------|---------|
-| `version` | Target Wazuh version (e.g., `4.14.1`) | Yes | — |
+| `version` | Target Wazuh version (e.g., `4.14.5`) | Yes | — |
 | `dry-run` | Preview changes without applying | No | `true` |
 
 ## Expected Outputs

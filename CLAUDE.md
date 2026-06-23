@@ -30,18 +30,18 @@ akamai-wazuh/
 │   ├── deploy-agents-bulk.sh    # Bulk VM deployment
 │   ├── vm-list.txt.example      # Example VM list
 │   └── README.md                # Agent deployment docs
+├── .gitmodules                  # Pins the wazuh-kubernetes submodule (branch 4.14.6)
 ├── kubernetes/                  # Kubernetes manifests
-│   ├── kustomization.yml        # Main kustomize config
-│   ├── wazuh-kubernetes/        # Cloned Wazuh K8s repo (gitignored)
+│   ├── kustomization.yml        # Main kustomize config (active deploy target)
+│   ├── wazuh-kubernetes/        # Wazuh K8s base manifests (git submodule, pinned)
 │   ├── wazuh-policy-exception.yaml  # Policy exception manifest
-│   ├── production-overlay/      # Production customizations
+│   ├── production-overlay/      # Production customizations (single source of truth)
 │   │   ├── kustomization.yml    # Overlay config
 │   │   ├── ingress.yaml         # Dashboard ingress
 │   │   ├── manager-loadbalancers.yaml
 │   │   ├── *-resources.yaml     # Resource limits
 │   │   ├── service-patches.yaml
 │   │   └── storage-class-patch.yaml
-│   ├── overlays/production/     # Alternative overlay (mirrors production-overlay)
 │   └── scripts/
 │       ├── generate-credentials.sh
 │       ├── verify-deployment.sh
@@ -56,8 +56,10 @@ akamai-wazuh/
 ├── docs/                        # Additional documentation
 │   ├── architecture.md          # High-level architecture overview
 │   ├── decisions/               # Architecture Decision Records
-│   │   └── 001-use-adr-format.md
+│   │   ├── 001-use-adr-format.md
+│   │   └── 002-vendor-wazuh-kubernetes-as-submodule.md
 │   ├── runbooks/                # Operational runbooks
+│   ├── EXISTING-CLUSTER.md      # Bring-your-own-cluster / submodule guide
 │   ├── HARBOR-AUTHENTICATION.md
 │   ├── HARBOR-PROXY-SETUP.md
 │   ├── REGISTRY-POLICY.md
@@ -73,7 +75,7 @@ akamai-wazuh/
         ├── code-review/
         ├── deploy/
         ├── release/
-        └── kustomize-validate/  # Overlay sync and version consistency checks
+        └── kustomize-validate/  # Submodule pin, version consistency, build checks
 ```
 
 Each major directory (`kubernetes/`, `scripts/`, `agent-deployment/`) has its own `CLAUDE.md` with module-specific context.
@@ -136,14 +138,19 @@ Each major directory (`kubernetes/`, `scripts/`, `agent-deployment/`) has its ow
 ### Deployment Process
 
 The `deploy.sh` script performs:
-1. Configuration validation
-2. Clone Wazuh Kubernetes repository
+1. Configuration validation (resolves the deployment profile: `akamai` or `existing-cluster`)
+2. Initialise the wazuh-kubernetes base manifests (git submodule)
 3. Generate TLS certificates
-4. Install infrastructure prerequisites
+4. Install infrastructure prerequisites (akamai profile only)
 5. Generate secure credentials
-6. Apply Kustomize configuration
+6. Substitute overlay placeholders and apply Kustomize configuration
 7. Wait for deployment readiness
 8. Display access information
+
+### Deployment Profiles
+
+- `akamai` (default): turnkey LKE deployment — installs nginx-ingress, cert-manager, ExternalDNS; verifies Linode DNS; provisions NodeBalancers.
+- `existing-cluster`: bring-your-own infrastructure for any existing cluster — skips the Akamai/Linode provisioning. Selected via `DEPLOY_PROFILE` or `--existing-cluster`. See `docs/EXISTING-CLUSTER.md`.
 
 ### Dry Run Mode
 
@@ -164,11 +171,12 @@ The `deploy.sh` script performs:
 
 ### Image Version Management
 
-Images are managed via `newTag` in kustomization files. **Note:** There are two version references in this repo:
-- `WAZUH_VERSION` in `config.env` / `deploy.sh` — controls which git branch of the Wazuh K8s repo to clone (currently `v4.9.2`)
-- `newTag` in `kubernetes/kustomization.yml` — controls the container image tags (currently `4.14.1` in main kustomization, `4.9.2` in production overlays)
+Images are managed via `newTag` in kustomization files. **Note:** There are two version references in this repo, decoupled on purpose:
+- `newTag` in `kubernetes/kustomization.yml` and `kubernetes/production-overlay/kustomization.yml` — the container image tags actually deployed (currently `4.14.5`, the latest stable Wazuh release).
+- The `kubernetes/wazuh-kubernetes` **git submodule**, pinned in `.gitmodules` to the `4.14.6` branch — the base manifests. Upstream publishes no 4.14 tags, only branches; `4.14.6` is the most mature (`4.14.7`/`main` are alpha).
+- `WAZUH_VERSION` in `config.env` / `deploy.sh` (default `4.14.6`) is now only a **fallback clone ref** used when the repo was not checked out with submodules (e.g. a source tarball).
 
-These may intentionally differ. When updating versions, check both.
+When updating versions, bump the image `newTag` in both kustomization files and, if needed, move the submodule pointer (see "Update Wazuh Version"). The `kustomize-validate` skill checks consistency.
 
 ### Resource and Replica Configuration
 
@@ -183,7 +191,9 @@ These may intentionally differ. When updating versions, check both.
 - `kubernetes/production-overlay/.credentials` - Generated passwords
 - `kubernetes/production-overlay/internal_users.yml` - Hashed passwords
 - `**/vm-list.txt` - Server hostnames
-- `kubernetes/wazuh-kubernetes/` - Cloned repository with certs
+- Certificates generated inside the `kubernetes/wazuh-kubernetes/` submodule
+  (`*.pem`, `*.key`, `*.crt`). The submodule **pointer** is tracked; its
+  working-tree certs are not.
 
 ### Credential Management
 
@@ -203,15 +213,21 @@ The base Wazuh Kubernetes repo uses default credentials:
 
 ### Update Wazuh Version
 
-1. Edit `kubernetes/kustomization.yml`
-2. Update `newTag` for all three images
-3. Apply: `kubectl apply -k kubernetes/`
+1. Edit `kubernetes/kustomization.yml` (and `kubernetes/production-overlay/kustomization.yml`)
+2. Update `newTag` for all three images to the new stable release
+3. (If needed) move the base manifests submodule:
+   ```bash
+   git -C kubernetes/wazuh-kubernetes fetch origin
+   git -C kubernetes/wazuh-kubernetes checkout <branch-or-commit>
+   git add kubernetes/wazuh-kubernetes
+   ```
+4. Apply: `kubectl apply -k kubernetes/`
 
 ### Change Image Registry
 
 Use the update-registry script:
 ```bash
-./scripts/update-registry.sh harbor.company.com/wazuh 4.14.1
+./scripts/update-registry.sh harbor.company.com/wazuh 4.14.5
 # Or with Harbor proxy
 ./scripts/update-registry.sh harbor.company.com/dockerhub-proxy/wazuh --proxy
 ```
@@ -258,16 +274,22 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 
 | Variable | Description |
 |----------|-------------|
-| `DOMAIN` | Root domain for DNS |
-| `LINODE_API_TOKEN` | Linode API token |
-| `LETSENCRYPT_EMAIL` | Email for certificates |
+| `DOMAIN` | Root domain for DNS (always required) |
+| `LINODE_API_TOKEN` | Linode API token (akamai profile / `MANAGE_DNS=true`) |
+| `LETSENCRYPT_EMAIL` | Email for certificates (akamai profile only) |
 
 ### Optional (config.env)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DEPLOY_PROFILE` | `akamai` | `akamai` or `existing-cluster` |
 | `WAZUH_NAMESPACE` | `wazuh` | Kubernetes namespace |
-| `WAZUH_VERSION` | `v4.9.2` | Wazuh version tag |
+| `WAZUH_VERSION` | `4.14.6` | Fallback wazuh-kubernetes clone ref (submodule normally used) |
+| `STORAGE_PROVISIONER` | `linodebs.csi.linode.com` | CSI provisioner for `wazuh-storage` |
+| `INGRESS_CLASS` | `nginx` | Ingress class for the dashboard |
+| `CLUSTER_ISSUER` | `letsencrypt-prod` | cert-manager ClusterIssuer |
+| `MANAGE_DNS` | profile-based | Manage Linode DNS (`true` for akamai) |
+| `MANAGE_TLS` | profile-based | Wait for cert-manager TLS (`true` for akamai) |
 | `DEPLOYMENT_TIMEOUT` | `600` | Seconds to wait |
 | `WORKER_REPLICAS` | `2` | Manager worker count |
 | `INDEXER_REPLICAS` | `3` | Indexer replica count |
@@ -315,9 +337,12 @@ Architecture Decision Records are stored in [docs/decisions/](docs/decisions/).
 
 - `config.env` (contains secrets)
 - `.credentials` files
-- `*.pem`, `*.key`, `*.crt` (certificates)
-- `kubernetes/wazuh-kubernetes/` (cloned during deployment)
+- `*.pem`, `*.key`, `*.crt` (certificates, including those generated inside the
+  `kubernetes/wazuh-kubernetes/` submodule)
 - `*.log` files
+
+> Note: `kubernetes/wazuh-kubernetes/` is a git submodule — its **pointer** is
+> committed (do not gitignore it), but generated certs inside it are not.
 
 ## Additional Resources
 

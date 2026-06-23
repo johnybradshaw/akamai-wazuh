@@ -316,7 +316,7 @@ spec:
       - operator: Exists
       containers:
       - name: wazuh-agent
-        image: wazuh/wazuh-agent:4.14.1
+        image: wazuh/wazuh-agent:4.14.5
         resources:
           requests:
             cpu: 100m

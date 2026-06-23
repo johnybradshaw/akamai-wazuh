@@ -137,13 +137,16 @@ commonAnnotations:
   documentation: "https://github.com/johnybradshaw/akamai-wazuh"
 
 # Images (can be overridden for specific versions)
+# Pinned to the latest stable Wazuh release. The wazuh-kubernetes base
+# manifests are vendored as a git submodule (kubernetes/wazuh-kubernetes,
+# branch 4.14.6); these image tags are what actually gets deployed.
 images:
   - name: wazuh/wazuh-indexer
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-manager
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-dashboard
-    newTag: 4.14.1
+    newTag: 4.14.5
 
 # Configuration for replica counts
 replicas:

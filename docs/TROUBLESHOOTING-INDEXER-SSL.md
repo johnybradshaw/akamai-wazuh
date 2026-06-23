@@ -38,12 +38,12 @@ ls -la kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster/
 ls -la kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http/
 ```
 
-### Step 2: Clone Repository (if missing)
+### Step 2: Initialise the submodule (if missing)
 
-If the `kubernetes/wazuh-kubernetes/` directory doesn't exist:
+`kubernetes/wazuh-kubernetes/` is a git submodule. If it is empty, initialise it:
 
 ```bash
-git clone https://github.com/wazuh/wazuh-kubernetes.git kubernetes/wazuh-kubernetes
+git submodule update --init --recursive
 ```
 
 ### Step 3: Generate Certificates
@@ -154,10 +154,10 @@ You can create a quick fix script to automate this:
 
 set -e
 
-echo "Checking wazuh-kubernetes repository..."
-if [ ! -d "kubernetes/wazuh-kubernetes" ]; then
-    echo "Cloning wazuh-kubernetes repository..."
-    git clone https://github.com/wazuh/wazuh-kubernetes.git kubernetes/wazuh-kubernetes
+echo "Checking wazuh-kubernetes base manifests (git submodule)..."
+if [ ! -f "kubernetes/wazuh-kubernetes/wazuh/kustomization.yml" ]; then
+    echo "Initialising wazuh-kubernetes submodule..."
+    git submodule update --init --recursive
 fi
 
 echo "Generating indexer certificates..."

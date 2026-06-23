@@ -1,11 +1,21 @@
 # ============================================================================
-# Akamai Cloud Storage Class Patch
+# Storage Class Patch
 # ============================================================================
-# Patches the base wazuh-storage StorageClass to use Linode Block Storage CSI
-# provisioner for Akamai Cloud Computing (LKE).
+# Patches the base "wazuh-storage" StorageClass to use a concrete CSI
+# provisioner. The provisioner is parameterised so the same manifest works on
+# Akamai Cloud (LKE) and on any other Kubernetes cluster:
+#
+#   ${STORAGE_PROVISIONER} is substituted by deploy.sh (default:
+#   linodebs.csi.linode.com for Linode Block Storage).
+#
+# Common values for a bring-your-own cluster:
+#   - linodebs.csi.linode.com   (Akamai Cloud / LKE — default)
+#   - ebs.csi.aws.com           (AWS EKS)
+#   - pd.csi.storage.gke.io     (Google GKE)
+#   - disk.csi.azure.com        (Azure AKS)
+#   - rancher.io/local-path     (k3s / local-path-provisioner)
 #
 # Features:
-#   - Linode Block Storage volumes (SSD-backed)
 #   - Retain policy: Persistent volumes retained after PVC deletion
 #   - Volume expansion: Enabled for dynamic resizing
 #   - Binding mode: Immediate (volumes created immediately)
@@ -17,7 +27,7 @@ metadata:
   name: wazuh-storage
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
-provisioner: linodebs.csi.linode.com
+provisioner: ${STORAGE_PROVISIONER}
 allowVolumeExpansion: true
 reclaimPolicy: Retain
 volumeBindingMode: Immediate

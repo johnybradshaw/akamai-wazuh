@@ -46,7 +46,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 TARGET_REGISTRY="$1"
-WAZUH_VERSION="4.14.1"
+WAZUH_VERSION="4.14.5"
 SOURCE_REGISTRY="docker.io/wazuh"
 
 # Remove trailing slash if present

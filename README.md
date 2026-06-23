@@ -3,8 +3,8 @@
 > Production-ready, turnkey deployment of Wazuh Security Information and Event Management (SIEM) platform on Akamai Cloud Computing (Linode Kubernetes Engine).
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Wazuh Version](https://img.shields.io/badge/Wazuh-4.9.2-green.svg)](https://wazuh.com/)
-[![Platform](https://img.shields.io/badge/Platform-Akamai%20Cloud-orange.svg)](https://www.linode.com/products/kubernetes/)
+[![Wazuh Version](https://img.shields.io/badge/Wazuh-4.14.5-green.svg)](https://wazuh.com/)
+[![Platform](https://img.shields.io/badge/Platform-Akamai%20Cloud%20%7C%20any%20K8s-orange.svg)](https://www.linode.com/products/kubernetes/)
 
 ## ⚠️ Disclaimer
 
@@ -156,10 +156,22 @@ kubectl get nodes
 ### Installation
 
 #### Step 1: Clone Repository
+
+The Wazuh base manifests are vendored as a **git submodule**, so clone with
+`--recurse-submodules`:
+
 ```bash
-git clone https://github.com/akamai/wazuh-quickstart.git
-cd wazuh-quickstart
+git clone --recurse-submodules https://github.com/johnybradshaw/akamai-wazuh.git
+cd akamai-wazuh
 ```
+
+Already cloned without `--recurse-submodules`? Initialise the submodule:
+
+```bash
+git submodule update --init --recursive
+```
+
+> `deploy.sh` will also initialise the submodule automatically if it is missing.
 
 #### Step 2: Configure
 ```bash
@@ -188,7 +200,7 @@ chmod +x deploy.sh
 
 The deployment takes approximately 5-10 minutes and will:
 1. ✓ Validate configuration and prerequisites
-2. ✓ Clone Wazuh Kubernetes repository
+2. ✓ Initialise the wazuh-kubernetes base manifests (git submodule)
 3. ✓ Generate TLS certificates
 4. ✓ Install infrastructure (nginx, cert-manager, ExternalDNS)
 5. ✓ Generate secure random passwords
@@ -222,6 +234,62 @@ To change the admin password:
 Future versions will include automatic random password generation. For now, manual password changes are required for security.
 
 Credentials are also saved to `kubernetes/production-overlay/.credentials`
+
+## Deploying to an Existing Cluster (git submodule)
+
+The default `akamai` profile above provisions everything for you on LKE. If you
+already run a Kubernetes cluster (LKE, EKS, GKE, AKS, k3s, …) with your own
+ingress controller, storage class, TLS and DNS, use the **`existing-cluster`
+profile** instead. It deploys only the Wazuh workloads and skips the
+Akamai/Linode-specific provisioning (Linode DNS checks, NodeBalancers,
+nginx-ingress / cert-manager / ExternalDNS installation).
+
+**Bring-your-own infrastructure you must already have:**
+
+- An **ingress controller** (set `INGRESS_CLASS`, default `nginx`)
+- A **storage class** provisioner (set `STORAGE_PROVISIONER`, e.g.
+  `ebs.csi.aws.com`, `pd.csi.storage.gke.io`, `disk.csi.azure.com`)
+- **TLS**: either cert-manager + a `ClusterIssuer` (set `CLUSTER_ISSUER`) or your
+  own `wazuh-dashboard-tls` secret
+- **DNS** records for `wazuh.<domain>`, `wazuh-manager.<domain>` and
+  `wazuh-registration.<domain>`
+
+### Option A — run deploy.sh with the existing-cluster profile
+
+```bash
+git clone --recurse-submodules https://github.com/johnybradshaw/akamai-wazuh.git
+cd akamai-wazuh
+cp config.env.example config.env
+
+# In config.env set at least:
+#   DEPLOY_PROFILE="existing-cluster"
+#   DOMAIN="example.com"
+#   STORAGE_PROVISIONER="ebs.csi.aws.com"   # match your cluster
+#   INGRESS_CLASS="nginx"                    # match your ingress controller
+#   CLUSTER_ISSUER="letsencrypt-prod"        # your cert-manager issuer (if any)
+
+./deploy.sh --existing-cluster
+```
+
+### Option B — consume this repo as a submodule in your own GitOps repo
+
+Add `akamai-wazuh` as a submodule of your infrastructure repository and pin it
+to a tag/commit you control:
+
+```bash
+git submodule add https://github.com/johnybradshaw/akamai-wazuh.git vendor/akamai-wazuh
+git submodule update --init --recursive   # pulls the nested wazuh-kubernetes submodule
+```
+
+Then drive the deployment from your repo (CI/CD, Argo CD, Flux, or a Makefile):
+
+```bash
+cd vendor/akamai-wazuh
+./deploy.sh --existing-cluster      # uses ../akamai-wazuh/config.env
+```
+
+See **[docs/EXISTING-CLUSTER.md](docs/EXISTING-CLUSTER.md)** for the full guide,
+including raw `kustomize` usage and Argo CD / Flux notes.
 
 ## Post-Deployment
 
@@ -561,9 +629,9 @@ dig wazuh-registration.example.com
 
 #### Certificate Not Issued
 ```bash
-# Check certificate status
+# Check certificate status (cert-manager names the cert after the TLS secret)
 kubectl get certificate -n wazuh
-kubectl describe certificate -n wazuh wazuh-dashboard-cert
+kubectl describe certificate -n wazuh wazuh-dashboard-tls
 
 # Check cert-manager logs
 kubectl logs -n cert-manager -l app=cert-manager
@@ -614,7 +682,7 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- \
    - Kubernetes: https://kubernetes.io/docs/
 
 3. **Search issues**: Check if others have encountered the same problem
-   - GitHub Issues: https://github.com/akamai/wazuh-quickstart/issues
+   - GitHub Issues: https://github.com/johnybradshaw/akamai-wazuh/issues
    - Wazuh Forum: https://groups.google.com/g/wazuh
 
 4. **Open an issue**: Provide detailed information
@@ -687,7 +755,14 @@ Notes:
 
 ## Updating Wazuh
 
-### Minor Updates (e.g., 4.9.0 → 4.9.2)
+Two things carry a version in this repo (see also [CLAUDE.md](CLAUDE.md)):
+
+- **Container image tags** — `newTag` in `kubernetes/kustomization.yml` (what
+  actually gets deployed; currently `4.14.5`).
+- **Base manifests** — the `kubernetes/wazuh-kubernetes` **git submodule**,
+  pinned in `.gitmodules` to the `4.14.6` branch.
+
+### Minor Updates (e.g., 4.14.4 → 4.14.5)
 
 ```bash
 # Update image tags in kustomization.yml
@@ -696,11 +771,11 @@ nano kubernetes/kustomization.yml
 # Change image tags
 images:
   - name: wazuh/wazuh-indexer
-    newTag: 4.9.2
+    newTag: 4.14.5
   - name: wazuh/wazuh-manager
-    newTag: 4.9.2
+    newTag: 4.14.5
   - name: wazuh/wazuh-dashboard
-    newTag: 4.9.2
+    newTag: 4.14.5
 
 # Apply update
 kubectl apply -k kubernetes/
@@ -708,6 +783,21 @@ kubectl apply -k kubernetes/
 # Monitor rollout
 kubectl rollout status statefulset/wazuh-indexer -n wazuh
 kubectl rollout status statefulset/wazuh-manager-master -n wazuh
+```
+
+### Updating the wazuh-kubernetes submodule
+
+To move the base manifests to a different upstream branch/commit and record the
+new pin in this repo:
+
+```bash
+# Fetch and move the submodule to the desired ref
+git -C kubernetes/wazuh-kubernetes fetch origin
+git -C kubernetes/wazuh-kubernetes checkout <branch-or-commit>
+
+# Stage the new submodule pointer
+git add kubernetes/wazuh-kubernetes
+git commit -m "Bump wazuh-kubernetes submodule to <ref>"
 ```
 
 ### Major Updates (e.g., 4.9.x → 5.0.x)
@@ -763,7 +853,10 @@ DNS records created by ExternalDNS are not automatically deleted. Remove them ma
 A: No, this quick-start requires DNS hosted on Linode/Akamai for ExternalDNS integration. You can modify ExternalDNS configuration for other providers.
 
 **Q: Can I deploy on non-Akamai Kubernetes?**
-A: Yes, but you'll need to modify LoadBalancer and storage configurations. This quick-start is optimized for LKE.
+A: Yes. Use the `existing-cluster` profile (`./deploy.sh --existing-cluster`) and
+set `STORAGE_PROVISIONER`, `INGRESS_CLASS` and `CLUSTER_ISSUER` to match your
+cluster. See [Deploying to an Existing Cluster](#deploying-to-an-existing-cluster-git-submodule)
+and [docs/EXISTING-CLUSTER.md](docs/EXISTING-CLUSTER.md).
 
 **Q: How many agents can this handle?**
 A: With default resources (3 nodes, 4GB each), approximately 100-200 agents. Scale workers and indexers for more.
@@ -814,6 +907,6 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) fo
 
 ---
 
-**Need Help?** Open an issue: https://github.com/akamai/wazuh-quickstart/issues
+**Need Help?** Open an issue: https://github.com/johnybradshaw/akamai-wazuh/issues
 
 **Maintained by:** Akamai Cloud Computing Team

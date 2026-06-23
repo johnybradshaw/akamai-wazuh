@@ -9,7 +9,7 @@
 #   ./scripts/regenerate-certs.sh
 #
 # What this script does:
-#   1. Clones wazuh-kubernetes repository (if missing)
+#   1. Ensures the wazuh-kubernetes base manifests are present (git submodule)
 #   2. Generates indexer cluster certificates
 #   3. Generates dashboard HTTP certificates
 #   4. Verifies all required certificates are present
@@ -40,20 +40,18 @@ log_error() { echo -e "${RED}✗${NC} $1"; }
 
 echo -e "\n${GREEN}Wazuh Certificate Regeneration Script${NC}\n"
 
-# Step 1: Check/clone wazuh-kubernetes repository
-if [ -d "$WAZUH_K8S_DIR" ]; then
-    log_info "wazuh-kubernetes repository already exists at: $WAZUH_K8S_DIR"
-
-    # Check if it's a git repository
-    if [ -d "$WAZUH_K8S_DIR/.git" ]; then
-        log_info "Updating wazuh-kubernetes repository..."
-        cd "$WAZUH_K8S_DIR"
-        git pull origin master || log_warning "Could not update repository (continuing with existing version)"
-        cd "$PROJECT_ROOT"
-    fi
+# Step 1: Ensure the wazuh-kubernetes base manifests are present (git submodule)
+if [ -f "$WAZUH_K8S_DIR/wazuh/kustomization.yml" ]; then
+    log_info "wazuh-kubernetes base manifests present at: $WAZUH_K8S_DIR"
+elif [ -f "$PROJECT_ROOT/.gitmodules" ] && git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    log_info "Initialising the wazuh-kubernetes git submodule..."
+    git -C "$PROJECT_ROOT" submodule update --init --recursive kubernetes/wazuh-kubernetes
+    log_success "Submodule initialised"
 else
-    log_info "Cloning wazuh-kubernetes repository..."
-    git clone https://github.com/wazuh/wazuh-kubernetes.git "$WAZUH_K8S_DIR"
+    # Fallback for non-git checkouts: clone the pinned ref.
+    log_info "Cloning wazuh-kubernetes repository (${WAZUH_K8S_REF:-4.14.6})..."
+    git clone https://github.com/wazuh/wazuh-kubernetes.git \
+        -b "${WAZUH_K8S_REF:-4.14.6}" --depth=1 "$WAZUH_K8S_DIR"
     log_success "Repository cloned successfully"
 fi
 
