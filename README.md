@@ -285,7 +285,7 @@ Then drive the deployment from your repo (CI/CD, Argo CD, Flux, or a Makefile):
 
 ```bash
 cd vendor/akamai-wazuh
-./deploy.sh --existing-cluster      # uses ../akamai-wazuh/config.env
+./deploy.sh --existing-cluster      # reads config.env from this directory
 ```
 
 See **[docs/EXISTING-CLUSTER.md](docs/EXISTING-CLUSTER.md)** for the full guide,

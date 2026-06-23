@@ -126,19 +126,23 @@ Because a few values use `${...}` placeholders, you must substitute them before
 GitOps flow, render with substitution in CI, e.g.:
 
 ```bash
+# Run these from the repository root.
+
 # 1. Initialise submodules and generate certs (once)
 git submodule update --init --recursive
-( cd kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster && bash "$OLDPWD/scripts/generate-indexer-certs-with-sans.sh" )
+( cd kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster && bash ../../../../../scripts/generate-indexer-certs-with-sans.sh )
 ( cd kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http && bash generate_certs.sh )
 
-# 2. Substitute placeholders and apply
+# 2. Substitute placeholders and apply (sed -i.bak is portable across GNU/BSD)
 export DOMAIN=example.com STORAGE_PROVISIONER=ebs.csi.aws.com \
        INGRESS_CLASS=nginx CLUSTER_ISSUER=letsencrypt-prod
-sed -e "s|\${DOMAIN}|$DOMAIN|g" \
+sed -i.bak \
+    -e "s|\${DOMAIN}|$DOMAIN|g" \
     -e "s|\${STORAGE_PROVISIONER}|$STORAGE_PROVISIONER|g" \
     -e "s|\${INGRESS_CLASS}|$INGRESS_CLASS|g" \
     -e "s|\${CLUSTER_ISSUER}|$CLUSTER_ISSUER|g" \
-    -i kubernetes/production-overlay/*.yaml
+    kubernetes/production-overlay/*.yaml
+rm -f kubernetes/production-overlay/*.bak
 kubectl apply -k kubernetes/
 ```
 
