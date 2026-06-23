@@ -337,14 +337,18 @@ else
     fi
 fi
 
-# Check helm
-log_info "Checking helm..."
-if ! command -v helm &> /dev/null; then
-    log_error "helm is not installed"
-    PREREQ_FAILED=true
+# Check helm (only required when we install prerequisites)
+if [[ "$SKIP_PREREQS" == "false" ]]; then
+    log_info "Checking helm..."
+    if ! command -v helm &> /dev/null; then
+        log_error "helm is not installed"
+        PREREQ_FAILED=true
+    else
+        HELM_VERSION=$(helm version --short)
+        log_success "helm installed: $HELM_VERSION"
+    fi
 else
-    HELM_VERSION=$(helm version --short)
-    log_success "helm installed: $HELM_VERSION"
+    log_info "Skipping helm check (prerequisite installation disabled for this profile)"
 fi
 
 # Check docker
