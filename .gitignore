@@ -20,8 +20,11 @@ config.env
 deploy.log
 *.log
 
-# Wazuh Kubernetes repository (cloned during deployment)
-kubernetes/wazuh-kubernetes/
+# Wazuh Kubernetes base manifests are vendored as a pinned git submodule
+# (kubernetes/wazuh-kubernetes). The submodule pointer IS tracked in git, so we
+# no longer ignore the directory. Certificates generated into it at deploy time
+# live inside the submodule's own working tree and are ignored by the patterns
+# below (*.pem, *.key, *.crt) and by the submodule's own .gitignore.
 
 # Generated credentials and secrets
 kubernetes/production-overlay/internal_users.yml

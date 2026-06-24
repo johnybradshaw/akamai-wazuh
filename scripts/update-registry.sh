@@ -18,7 +18,7 @@
 #   ./scripts/update-registry.sh harbor.company.com/dockerhub-proxy/wazuh --proxy
 #
 #   # With custom version
-#   ./scripts/update-registry.sh harbor.company.com/wazuh 4.14.1
+#   ./scripts/update-registry.sh harbor.company.com/wazuh 4.14.5
 #
 # ============================================================================
 
@@ -51,13 +51,13 @@ if [[ $# -lt 1 ]]; then
     echo "  $0 harbor.company.com/dockerhub-proxy/wazuh --proxy"
     echo ""
     echo "  # With custom version"
-    echo "  $0 harbor.company.com/wazuh 4.14.1"
+    echo "  $0 harbor.company.com/wazuh 4.14.5"
     echo ""
     exit 1
 fi
 
 REGISTRY="$1"
-VERSION="4.14.1"
+VERSION="4.14.5"
 IS_PROXY="false"
 
 # Parse optional arguments

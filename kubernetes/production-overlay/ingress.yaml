@@ -26,8 +26,11 @@ metadata:
     # Force ExternalDNS to update existing records (overwrites stale entries)
     external-dns.alpha.kubernetes.io/force-update: "true"
 
-    # cert-manager - Automatic TLS certificate provisioning
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # cert-manager - Automatic TLS certificate provisioning.
+    # ${CLUSTER_ISSUER} is substituted by deploy.sh (default: letsencrypt-prod).
+    # On a bring-your-own-TLS cluster without cert-manager this annotation is
+    # simply ignored; provide your own "wazuh-dashboard-tls" secret instead.
+    cert-manager.io/cluster-issuer: ${CLUSTER_ISSUER}
 
     # NGINX Ingress settings
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
@@ -57,7 +60,9 @@ metadata:
     description: "Wazuh Dashboard HTTPS ingress with Let's Encrypt TLS"
 
 spec:
-  ingressClassName: nginx
+  # ${INGRESS_CLASS} is substituted by deploy.sh (default: nginx). Set
+  # INGRESS_CLASS in config.env to match your existing ingress controller.
+  ingressClassName: ${INGRESS_CLASS}
   # TLS configuration
   tls:
     - hosts:
@@ -78,51 +83,9 @@ spec:
                 port:
                   number: 5601
 
----
-# Certificate resource for cert-manager
-# This is automatically created by the ingress annotation,
-# but defining it explicitly provides better control
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: wazuh-dashboard-cert
-  namespace: wazuh
-  labels:
-    app: wazuh-dashboard
-    component: certificate
-spec:
-  # Secret name to store the certificate
-  secretName: wazuh-dashboard-tls
-
-  # Certificate duration (Let's Encrypt default: 90 days)
-  duration: 2160h  # 90 days
-  renewBefore: 360h  # 15 days before expiration
-
-  # Subject configuration
-  subject:
-    organizations:
-      - Wazuh SIEM
-
-  # Common name and DNS names
-  commonName: wazuh.${DOMAIN}
-  dnsNames:
-    - wazuh.${DOMAIN}
-
-  # Issuer reference
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-    group: cert-manager.io
-
-  # Private key configuration
-  privateKey:
-    algorithm: RSA
-    encoding: PKCS1
-    size: 4096
-    rotationPolicy: Always
-
-  # Use HTTP-01 challenge
-  usages:
-    - digital signature
-    - key encipherment
-    - server auth
+# NOTE: When cert-manager is installed, its ingress-shim automatically creates
+# a Certificate for the host above (from the cert-manager.io/cluster-issuer
+# annotation and the tls block) and stores it in the "wazuh-dashboard-tls"
+# secret. We deliberately do NOT define an explicit cert-manager Certificate
+# resource here so that this manifest also applies cleanly to clusters that do
+# not have the cert-manager CRDs installed (bring-your-own-TLS deployments).

@@ -40,13 +40,13 @@ This will update your kustomization to use:
 images:
   - name: wazuh/wazuh-indexer
     newName: harbor.company.com/dockerhub-proxy/wazuh/wazuh-indexer
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-manager
     newName: harbor.company.com/dockerhub-proxy/wazuh/wazuh-manager
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-dashboard
     newName: harbor.company.com/dockerhub-proxy/wazuh/wazuh-dashboard
-    newTag: 4.14.1
+    newTag: 4.14.5
 ```
 
 ### Step 3: Deploy
@@ -146,7 +146,7 @@ kubectl patch serviceaccount default -n wazuh \
    curl -I https://harbor.company.com
 
    # Test image pull
-   docker pull harbor.company.com/dockerhub-proxy/wazuh/wazuh-indexer:4.14.1
+   docker pull harbor.company.com/dockerhub-proxy/wazuh/wazuh-indexer:4.14.5
    ```
 
 2. **Check Harbor logs:**

@@ -64,7 +64,9 @@ This system provides a production-ready deployment of Wazuh SIEM on Akamai Cloud
 
 ## Deployment
 
-- **Platform**: Akamai Cloud Computing (Linode Kubernetes Engine)
+- **Platform**: Akamai Cloud Computing (LKE) by default; any Kubernetes cluster via the `existing-cluster` profile
 - **Orchestration**: Single `deploy.sh` script handles end-to-end provisioning
-- **Configuration**: Kustomize overlays for production customisation
-- **DNS**: Automated via ExternalDNS with Linode DNS provider
+- **Base manifests**: `wazuh/wazuh-kubernetes` vendored as a pinned **git submodule** (`kubernetes/wazuh-kubernetes`, branch `4.14.6`); image tags pinned to `4.14.5`
+- **Configuration**: Kustomize overlay (`kubernetes/production-overlay`) with parameterised, bring-your-own-infra values (`${DOMAIN}`, `${STORAGE_PROVISIONER}`, `${INGRESS_CLASS}`, `${CLUSTER_ISSUER}`)
+- **Profiles**: `akamai` (turnkey LKE) and `existing-cluster` (BYO ingress/storage/TLS/DNS) — see [decisions/002](decisions/002-vendor-wazuh-kubernetes-as-submodule.md) and [EXISTING-CLUSTER.md](EXISTING-CLUSTER.md)
+- **DNS**: Automated via ExternalDNS with Linode DNS provider (akamai profile)

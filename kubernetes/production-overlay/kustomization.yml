@@ -92,11 +92,11 @@ patches:
 # Images (can be overridden for specific versions)
 images:
   - name: wazuh/wazuh-indexer
-    newTag: 4.9.2
+    newTag: 4.14.5
   - name: wazuh/wazuh-manager
-    newTag: 4.9.2
+    newTag: 4.14.5
   - name: wazuh/wazuh-dashboard
-    newTag: 4.9.2
+    newTag: 4.14.5
 
 # Configuration for replica counts (can be overridden)
 replicas:

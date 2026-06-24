@@ -83,7 +83,7 @@ Update the configuration to use your registry:
 ./scripts/update-registry.sh harbor.company.com/wazuh
 
 # Or with custom version
-./scripts/update-registry.sh harbor.company.com/wazuh 4.14.1
+./scripts/update-registry.sh harbor.company.com/wazuh 4.14.5
 ```
 
 ### Step 5: Redeploy Wazuh
@@ -106,19 +106,19 @@ If the scripts don't work, manually mirror each image:
 REGISTRY="harbor.company.com/wazuh"
 
 # Mirror indexer
-docker pull wazuh/wazuh-indexer:4.14.1
-docker tag wazuh/wazuh-indexer:4.14.1 $REGISTRY/wazuh-indexer:4.14.1
-docker push $REGISTRY/wazuh-indexer:4.14.1
+docker pull wazuh/wazuh-indexer:4.14.5
+docker tag wazuh/wazuh-indexer:4.14.5 $REGISTRY/wazuh-indexer:4.14.5
+docker push $REGISTRY/wazuh-indexer:4.14.5
 
 # Mirror manager
-docker pull wazuh/wazuh-manager:4.14.1
-docker tag wazuh/wazuh-manager:4.14.1 $REGISTRY/wazuh-manager:4.14.1
-docker push $REGISTRY/wazuh-manager:4.14.1
+docker pull wazuh/wazuh-manager:4.14.5
+docker tag wazuh/wazuh-manager:4.14.5 $REGISTRY/wazuh-manager:4.14.5
+docker push $REGISTRY/wazuh-manager:4.14.5
 
 # Mirror dashboard
-docker pull wazuh/wazuh-dashboard:4.14.1
-docker tag wazuh/wazuh-dashboard:4.14.1 $REGISTRY/wazuh-dashboard:4.14.1
-docker push $REGISTRY/wazuh-dashboard:4.14.1
+docker pull wazuh/wazuh-dashboard:4.14.5
+docker tag wazuh/wazuh-dashboard:4.14.5 $REGISTRY/wazuh-dashboard:4.14.5
+docker push $REGISTRY/wazuh-dashboard:4.14.5
 ```
 
 Then manually edit `kubernetes/kustomization.yml`:
@@ -127,13 +127,13 @@ Then manually edit `kubernetes/kustomization.yml`:
 images:
   - name: wazuh/wazuh-indexer
     newName: harbor.company.com/wazuh/wazuh-indexer
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-manager
     newName: harbor.company.com/wazuh/wazuh-manager
-    newTag: 4.14.1
+    newTag: 4.14.5
   - name: wazuh/wazuh-dashboard
     newName: harbor.company.com/wazuh/wazuh-dashboard
-    newTag: 4.14.1
+    newTag: 4.14.5
 ```
 
 ## Troubleshooting

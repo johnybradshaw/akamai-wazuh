@@ -7,7 +7,7 @@
 #
 # What this script does:
 #   1. Validates prerequisites and configuration
-#   2. Clones Wazuh Kubernetes repository
+#   2. Initializes the wazuh-kubernetes base manifests (git submodule)
 #   3. Generates TLS certificates
 #   4. Installs infrastructure prerequisites (nginx, cert-manager, ExternalDNS)
 #   5. Generates secure random passwords
@@ -16,22 +16,35 @@
 #   8. Initializes Wazuh Indexer security configuration
 #   9. Displays access information
 #
+# Deployment profiles (DEPLOY_PROFILE / --profile):
+#   akamai            Turnkey deployment on Akamai Cloud (LKE). Installs
+#                     nginx-ingress, cert-manager and ExternalDNS, verifies the
+#                     domain on Linode DNS, and provisions Linode NodeBalancers.
+#   existing-cluster  Deploy onto an existing Kubernetes cluster using your own
+#                     ingress controller, storage class, TLS and DNS
+#                     (bring-your-own infrastructure). Skips the Akamai/Linode
+#                     specific provisioning steps.
+#
 # Usage:
 #   ./deploy.sh [OPTIONS]
 #
 # Options:
 #   --dry-run           Validate configuration without deploying
+#   --profile NAME      Deployment profile: akamai (default) or existing-cluster
+#   --existing-cluster  Shorthand for --profile existing-cluster
 #   --skip-prereqs      Skip prerequisite installation
 #   --skip-certs        Skip certificate generation
 #   --force             Force deployment even if validation fails
 #   --help              Show this help message
 #
 # Requirements:
-#   - kubectl configured for LKE cluster (3+ nodes, 4GB RAM each)
-#   - helm 3.x
+#   - kubectl configured for the target cluster
+#   - git (this repository is a normal git checkout so the wazuh-kubernetes
+#     submodule can be initialised; or run with --recurse-submodules on clone)
+#   - helm 3.x (only for the "akamai" profile, to install prerequisites)
 #   - docker (for password hash generation)
 #   - jq (for JSON parsing)
-#   - config.env file with DOMAIN, LINODE_API_TOKEN, LETSENCRYPT_EMAIL
+#   - config.env file (see config.env.example)
 #
 # ============================================================================
 
@@ -48,6 +61,8 @@ DRY_RUN=false
 SKIP_PREREQS=false
 SKIP_CERTS=false
 FORCE=false
+# Deployment profile may be overridden on the CLI; CLI wins over config.env.
+PROFILE_CLI=""
 
 # Logging
 LOG_FILE="$SCRIPT_DIR/deploy.log"
@@ -82,34 +97,44 @@ Usage: $0 [OPTIONS]
 
 Options:
   --dry-run           Validate configuration without deploying
+  --profile NAME      Deployment profile: akamai (default) or existing-cluster
+  --existing-cluster  Shorthand for --profile existing-cluster
   --skip-prereqs      Skip prerequisite installation (nginx, cert-manager, ExternalDNS)
   --skip-certs        Skip certificate generation
   --force             Force deployment even if validation warnings occur
   --help              Show this help message
 
 Requirements:
-  - kubectl configured for an LKE cluster (3+ nodes, 4GB RAM each)
-  - helm 3.x installed
+  - kubectl configured for the target cluster
+  - git (to initialise the wazuh-kubernetes submodule)
+  - helm 3.x (akamai profile only, for installing prerequisites)
   - docker installed (for password hash generation)
   - jq installed (for JSON parsing)
   - config.env file with required variables
 
 Configuration (config.env):
-  DOMAIN                - Your root domain (DNS must be on Linode)
-  LINODE_API_TOKEN      - Linode API token with Domains Read/Write
-  LETSENCRYPT_EMAIL     - Email for Let's Encrypt certificates
+  DOMAIN                - Your root domain (akamai profile: DNS must be on Linode)
+  LINODE_API_TOKEN      - Linode API token (akamai profile / MANAGE_DNS=true)
+  LETSENCRYPT_EMAIL     - Email for Let's Encrypt certificates (when MANAGE_TLS=true)
+  DEPLOY_PROFILE        - akamai (default) or existing-cluster
+  STORAGE_PROVISIONER   - CSI provisioner for the wazuh-storage class
+  INGRESS_CLASS         - Ingress class for the dashboard (default: nginx)
+  CLUSTER_ISSUER        - cert-manager ClusterIssuer (default: letsencrypt-prod)
 
 Examples:
-  # Normal deployment
+  # Turnkey deployment on Akamai Cloud (LKE)
   ./deploy.sh
 
   # Validate configuration without deploying
   ./deploy.sh --dry-run
 
+  # Deploy onto an existing cluster with your own ingress/storage/TLS/DNS
+  ./deploy.sh --existing-cluster
+
   # Deploy without installing prerequisites (already installed)
   ./deploy.sh --skip-prereqs
 
-For more information: https://github.com/akamai/wazuh-quickstart
+For more information: https://github.com/johnybradshaw/akamai-wazuh
 EOF
     exit 0
 }
@@ -121,6 +146,18 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --profile)
+            PROFILE_CLI="${2:-}"
+            if [[ -z "$PROFILE_CLI" ]]; then
+                log_error "--profile requires an argument (akamai or existing-cluster)"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --existing-cluster)
+            PROFILE_CLI="existing-cluster"
             shift
             ;;
         --skip-prereqs)
@@ -186,8 +223,54 @@ log_info "Loading configuration from config.env..."
 # shellcheck source=/dev/null
 source config.env
 
-# Validate required variables
-REQUIRED_VARS=("DOMAIN" "LINODE_API_TOKEN" "LETSENCRYPT_EMAIL")
+# ----------------------------------------------------------------------------
+# Resolve deployment profile (CLI flag wins over config.env, default: akamai)
+# ----------------------------------------------------------------------------
+DEPLOY_PROFILE="${PROFILE_CLI:-${DEPLOY_PROFILE:-akamai}}"
+case "$DEPLOY_PROFILE" in
+    akamai|existing-cluster) ;;
+    *)
+        log_error "Invalid DEPLOY_PROFILE: '$DEPLOY_PROFILE' (expected: akamai or existing-cluster)"
+        exit 1
+        ;;
+esac
+
+# ----------------------------------------------------------------------------
+# Defaults for optional variables (defaults are tuned for the akamai/LKE profile)
+# ----------------------------------------------------------------------------
+WAZUH_NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
+# wazuh-kubernetes submodule ref (used only as a fallback clone target when the
+# repository was not checked out with submodules, e.g. a source tarball).
+WAZUH_VERSION="${WAZUH_VERSION:-4.14.6}"
+DEPLOYMENT_TIMEOUT="${DEPLOYMENT_TIMEOUT:-600}"
+
+# Bring-your-own-infrastructure knobs (substituted into the Kustomize overlay).
+STORAGE_PROVISIONER="${STORAGE_PROVISIONER:-linodebs.csi.linode.com}"
+INGRESS_CLASS="${INGRESS_CLASS:-nginx}"
+CLUSTER_ISSUER="${CLUSTER_ISSUER:-letsencrypt-prod}"
+
+# Whether deploy.sh manages DNS (Linode) and TLS (cert-manager). For the
+# existing-cluster profile these default to "false" (bring your own).
+if [[ "$DEPLOY_PROFILE" == "existing-cluster" ]]; then
+    MANAGE_DNS="${MANAGE_DNS:-false}"
+    MANAGE_TLS="${MANAGE_TLS:-false}"
+    # On an existing cluster we never install nginx/cert-manager/ExternalDNS.
+    SKIP_PREREQS=true
+else
+    MANAGE_DNS="${MANAGE_DNS:-true}"
+    MANAGE_TLS="${MANAGE_TLS:-true}"
+fi
+
+# ----------------------------------------------------------------------------
+# Validate required variables (depends on the active profile)
+# ----------------------------------------------------------------------------
+REQUIRED_VARS=("DOMAIN")
+# LINODE_API_TOKEN is needed for the Linode DNS check and ExternalDNS.
+[[ "$MANAGE_DNS" == "true" ]] && REQUIRED_VARS+=("LINODE_API_TOKEN")
+# LETSENCRYPT_EMAIL is only needed when we install cert-manager and create the
+# Let's Encrypt ClusterIssuer (akamai profile). On an existing cluster you bring
+# your own issuer/TLS, so it is not required.
+[[ "$DEPLOY_PROFILE" == "akamai" ]] && REQUIRED_VARS+=("LETSENCRYPT_EMAIL")
 MISSING_VARS=()
 
 for var in "${REQUIRED_VARS[@]}"; do
@@ -197,7 +280,7 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
-    log_error "Missing required configuration variables:"
+    log_error "Missing required configuration variables for profile '$DEPLOY_PROFILE':"
     for var in "${MISSING_VARS[@]}"; do
         echo "  - $var"
     done
@@ -206,18 +289,14 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
 fi
 
 log_success "Configuration loaded successfully"
+log_info "Profile: $DEPLOY_PROFILE (manage DNS: $MANAGE_DNS, manage TLS: $MANAGE_TLS)"
 log_info "Domain: $DOMAIN"
-log_info "Namespace: ${WAZUH_NAMESPACE:-wazuh}"
-log_info "Wazuh Version: ${WAZUH_VERSION:-v4.9.2}"
-
-# Set defaults for optional variables
-WAZUH_NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
-WAZUH_VERSION="${WAZUH_VERSION:-v4.9.2}"
-DEPLOYMENT_TIMEOUT="${DEPLOYMENT_TIMEOUT:-600}"
-SKIP_PREREQUISITES="${SKIP_PREREQUISITES:-false}"
+log_info "Namespace: $WAZUH_NAMESPACE"
+log_info "Storage provisioner: $STORAGE_PROVISIONER | Ingress class: $INGRESS_CLASS"
 
 # Export for subprocesses
 export DOMAIN LINODE_API_TOKEN LETSENCRYPT_EMAIL WAZUH_NAMESPACE
+export DEPLOY_PROFILE STORAGE_PROVISIONER INGRESS_CLASS CLUSTER_ISSUER MANAGE_DNS MANAGE_TLS
 
 # ============================================================================
 # Step 2: Check Prerequisites
@@ -258,14 +337,18 @@ else
     fi
 fi
 
-# Check helm
-log_info "Checking helm..."
-if ! command -v helm &> /dev/null; then
-    log_error "helm is not installed"
-    PREREQ_FAILED=true
+# Check helm (only required when we install prerequisites)
+if [[ "$SKIP_PREREQS" == "false" ]]; then
+    log_info "Checking helm..."
+    if ! command -v helm &> /dev/null; then
+        log_error "helm is not installed"
+        PREREQ_FAILED=true
+    else
+        HELM_VERSION=$(helm version --short)
+        log_success "helm installed: $HELM_VERSION"
+    fi
 else
-    HELM_VERSION=$(helm version --short)
-    log_success "helm installed: $HELM_VERSION"
+    log_info "Skipping helm check (prerequisite installation disabled for this profile)"
 fi
 
 # Check docker
@@ -320,47 +403,55 @@ fi
 log_success "All prerequisites satisfied"
 
 # ============================================================================
-# Step 3: Verify Linode DNS Domain
+# Step 3: Verify DNS Domain
 # ============================================================================
-log_step "Step 3: Verifying Linode DNS Domain"
+log_step "Step 3: Verifying DNS Domain"
 
-log_info "Checking if domain '$DOMAIN' exists in Linode DNS..."
-
-# Make API call and capture the full response
-API_RESPONSE=$(curl -s -H "Authorization: Bearer $LINODE_API_TOKEN" \
-    "https://api.linode.com/v4/domains")
-
-# Check if the response contains an error
-if echo "$API_RESPONSE" | jq -e '.errors' &> /dev/null; then
-    ERROR_MSG=$(echo "$API_RESPONSE" | jq -r '.errors[0].reason // "Unknown API error"')
-    log_error "Linode API error: $ERROR_MSG"
-    log_info "Please verify your LINODE_API_TOKEN in config.env"
-    log_info "Token should have 'Domains' Read permission"
-    log_info "Create a token at: https://cloud.linode.com/profile/tokens"
-    exit 1
-fi
-
-# Check if the response has the expected data structure
-if ! echo "$API_RESPONSE" | jq -e '.data' &> /dev/null; then
-    log_error "Unexpected API response format"
-    log_info "Response: $API_RESPONSE"
-    log_info "Please verify your LINODE_API_TOKEN is valid"
-    exit 1
-fi
-
-# Check if the domain exists
-DOMAIN_CHECK=$(echo "$API_RESPONSE" | jq -r ".data[]? | select(.domain==\"$DOMAIN\") | .domain")
-
-if [[ "$DOMAIN_CHECK" == "$DOMAIN" ]]; then
-    log_success "Domain '$DOMAIN' found in Linode DNS"
+if [[ "$MANAGE_DNS" != "true" ]]; then
+    log_info "Profile '$DEPLOY_PROFILE': skipping Linode DNS verification (bring your own DNS)"
+    log_info "Ensure DNS records for the following point at your ingress / load balancers:"
+    echo "  - wazuh.$DOMAIN              (dashboard)"
+    echo "  - wazuh-manager.$DOMAIN      (agent events)"
+    echo "  - wazuh-registration.$DOMAIN (agent registration)"
 else
-    log_error "Domain '$DOMAIN' not found in Linode DNS"
-    log_info "Available domains:"
-    echo "$API_RESPONSE" | jq -r '.data[]?.domain' | sed 's/^/  - /'
-    echo ""
-    log_info "Please ensure your domain is hosted on Linode/Akamai DNS"
-    log_info "Visit: https://cloud.linode.com/domains"
-    exit 1
+    log_info "Checking if domain '$DOMAIN' exists in Linode DNS..."
+
+    # Make API call and capture the full response
+    API_RESPONSE=$(curl -s -H "Authorization: Bearer $LINODE_API_TOKEN" \
+        "https://api.linode.com/v4/domains")
+
+    # Check if the response contains an error
+    if echo "$API_RESPONSE" | jq -e '.errors' &> /dev/null; then
+        ERROR_MSG=$(echo "$API_RESPONSE" | jq -r '.errors[0].reason // "Unknown API error"')
+        log_error "Linode API error: $ERROR_MSG"
+        log_info "Please verify your LINODE_API_TOKEN in config.env"
+        log_info "Token should have 'Domains' Read permission"
+        log_info "Create a token at: https://cloud.linode.com/profile/tokens"
+        exit 1
+    fi
+
+    # Check if the response has the expected data structure
+    if ! echo "$API_RESPONSE" | jq -e '.data' &> /dev/null; then
+        log_error "Unexpected API response format"
+        log_info "Response: $API_RESPONSE"
+        log_info "Please verify your LINODE_API_TOKEN is valid"
+        exit 1
+    fi
+
+    # Check if the domain exists
+    DOMAIN_CHECK=$(echo "$API_RESPONSE" | jq -r ".data[]? | select(.domain==\"$DOMAIN\") | .domain")
+
+    if [[ "$DOMAIN_CHECK" == "$DOMAIN" ]]; then
+        log_success "Domain '$DOMAIN' found in Linode DNS"
+    else
+        log_error "Domain '$DOMAIN' not found in Linode DNS"
+        log_info "Available domains:"
+        echo "$API_RESPONSE" | jq -r '.data[]?.domain' | sed 's/^/  - /'
+        echo ""
+        log_info "Please ensure your domain is hosted on Linode/Akamai DNS"
+        log_info "Visit: https://cloud.linode.com/domains"
+        exit 1
+    fi
 fi
 
 # ============================================================================
@@ -376,25 +467,38 @@ if [[ "$DRY_RUN" == "true" ]]; then
 fi
 
 # ============================================================================
-# Step 4: Clone Wazuh Kubernetes Repository
+# Step 4: Prepare Wazuh Kubernetes Base Manifests (git submodule)
 # ============================================================================
-log_step "Step 4: Cloning Wazuh Kubernetes Repository"
+log_step "Step 4: Preparing Wazuh Kubernetes Base Manifests"
 
 WAZUH_K8S_DIR="$SCRIPT_DIR/kubernetes/wazuh-kubernetes"
 
-if [[ -d "$WAZUH_K8S_DIR" ]]; then
-    log_warning "Wazuh Kubernetes repository already exists"
-    log_info "Pulling latest changes..."
-    cd "$WAZUH_K8S_DIR"
-    git pull || log_warning "Failed to pull latest changes (using existing)"
-    cd "$SCRIPT_DIR"
+if [[ -f "$WAZUH_K8S_DIR/wazuh/kustomization.yml" ]]; then
+    log_success "wazuh-kubernetes base manifests already present (git submodule)"
+elif [[ -f "$SCRIPT_DIR/.gitmodules" ]] && git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
+    log_info "Initialising the wazuh-kubernetes git submodule..."
+    if git -C "$SCRIPT_DIR" submodule update --init --recursive kubernetes/wazuh-kubernetes; then
+        log_success "Submodule initialised"
+    else
+        log_error "Failed to initialise the wazuh-kubernetes submodule"
+        log_info "Run manually: git submodule update --init --recursive"
+        exit 1
+    fi
 else
-    log_info "Cloning Wazuh Kubernetes repository..."
+    # Fallback for non-git checkouts (e.g. a source tarball): clone the pinned ref.
+    log_warning "Repository was not checked out with submodules; cloning wazuh-kubernetes (${WAZUH_VERSION})..."
     git clone https://github.com/wazuh/wazuh-kubernetes.git \
         -b "$WAZUH_VERSION" \
         --depth=1 \
         "$WAZUH_K8S_DIR"
     log_success "Repository cloned successfully"
+fi
+
+# Sanity-check that the base manifests are usable before continuing.
+if [[ ! -f "$WAZUH_K8S_DIR/wazuh/kustomization.yml" ]]; then
+    log_error "wazuh-kubernetes base manifests not found at $WAZUH_K8S_DIR/wazuh"
+    log_info "Expected the git submodule to be populated. See README (Existing cluster / git submodule)."
+    exit 1
 fi
 
 # ============================================================================
@@ -479,12 +583,23 @@ log_success "Credentials generated and saved to $OVERLAY_DIR/.credentials"
 # ============================================================================
 log_step "Step 8: Preparing Kustomize Overlay"
 
-log_info "Substituting domain placeholders in manifests..."
+log_info "Substituting placeholders in manifests..."
+log_info "  DOMAIN=$DOMAIN"
+log_info "  STORAGE_PROVISIONER=$STORAGE_PROVISIONER"
+log_info "  INGRESS_CLASS=$INGRESS_CLASS"
+log_info "  CLUSTER_ISSUER=$CLUSTER_ISSUER"
 
-# Substitute ${DOMAIN} in YAML files
+# NOTE: this rewrites the overlay files in place (they ship with ${...}
+# placeholders). Pipe '|' is used as the sed delimiter so values containing
+# slashes/dots are handled safely.
 for file in "$OVERLAY_DIR"/*.yaml; do
     if [[ -f "$file" ]]; then
-        sed -i.bak "s/\${DOMAIN}/$DOMAIN/g" "$file"
+        sed -i.bak \
+            -e "s|\${DOMAIN}|$DOMAIN|g" \
+            -e "s|\${STORAGE_PROVISIONER}|$STORAGE_PROVISIONER|g" \
+            -e "s|\${INGRESS_CLASS}|$INGRESS_CLASS|g" \
+            -e "s|\${CLUSTER_ISSUER}|$CLUSTER_ISSUER|g" \
+            "$file"
         rm -f "${file}.bak"
     fi
 done
@@ -641,8 +756,8 @@ if [[ -n "$WORKERS_LB_IP" ]]; then
     log_info "Workers LoadBalancer IP: $WORKERS_LB_IP"
 fi
 
-# Wait for DNS propagation
-if command -v dig &> /dev/null; then
+# Wait for DNS propagation (only when we manage DNS)
+if [[ "$MANAGE_DNS" == "true" ]] && command -v dig &> /dev/null; then
     log_info "Waiting for DNS propagation (this may take 2-5 minutes)..."
     ELAPSED=0
     while [[ $ELAPSED -lt 300 ]]; do
@@ -658,23 +773,32 @@ if command -v dig &> /dev/null; then
     echo ""
 fi
 
-# Wait for TLS certificate
-log_info "Waiting for TLS certificate to be issued..."
-ELAPSED=0
-while [[ $ELAPSED -lt 300 ]]; do
-    CERT_READY=$(kubectl get certificate -n "$WAZUH_NAMESPACE" wazuh-dashboard-cert -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
-
-    if [[ "$CERT_READY" == "True" ]]; then
-        log_success "TLS certificate issued successfully"
-        break
+# Wait for the TLS certificate (only when cert-manager is managing TLS).
+# We removed the explicit cert-manager Certificate resource for portability, so
+# cert-manager's ingress-shim creates the cert and stores it in the
+# "wazuh-dashboard-tls" secret. Waiting on that secret works regardless of how
+# the certificate is provisioned.
+if [[ "$MANAGE_TLS" == "true" ]]; then
+    log_info "Waiting for TLS certificate (secret 'wazuh-dashboard-tls') to be issued..."
+    ELAPSED=0
+    while [[ $ELAPSED -lt 300 ]]; do
+        if kubectl get secret -n "$WAZUH_NAMESPACE" wazuh-dashboard-tls &>/dev/null; then
+            log_success "TLS certificate issued (secret 'wazuh-dashboard-tls' present)"
+            break
+        fi
+        echo -ne "  Waiting for cert-manager to issue the certificate... ${ELAPSED}s elapsed\r"
+        sleep 10
+        ELAPSED=$((ELAPSED + 10))
+    done
+    echo ""
+    if [[ $ELAPSED -ge 300 ]]; then
+        log_warning "TLS certificate not issued yet"
+        log_info "Check: kubectl describe certificate,certificaterequest,order,challenge -n $WAZUH_NAMESPACE"
     fi
-
-    echo -ne "  Certificate status: $CERT_READY... ${ELAPSED}s elapsed\r"
-    sleep 10
-    ELAPSED=$((ELAPSED + 10))
-done
-
-echo ""
+else
+    log_info "Profile '$DEPLOY_PROFILE': skipping TLS wait"
+    log_info "Provide your own TLS secret named 'wazuh-dashboard-tls' in namespace '$WAZUH_NAMESPACE'"
+fi
 
 # ============================================================================
 # Step 12: Verify Deployment
@@ -694,26 +818,27 @@ echo "║                                                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Get admin password
-ADMIN_PASSWORD=$(grep "WAZUH_DASHBOARD_PASSWORD=" "$OVERLAY_DIR/.credentials" | cut -d'=' -f2 | tr -d '"')
-AGENT_PASSWORD=$(grep "WAZUH_AGENT_PASSWORD=" "$OVERLAY_DIR/.credentials" | cut -d'=' -f2 | tr -d '"')
-
 log_success "Wazuh Dashboard"
 echo "  URL:      https://wazuh.$DOMAIN"
 echo "  Username: admin"
-echo "  Password: $ADMIN_PASSWORD"
+echo "  Password: SecretPassword"
 echo ""
-
+log_warning "The deployment uses the upstream Wazuh DEFAULT credentials (admin / SecretPassword)."
+log_warning "You MUST change the admin password immediately after first login."
+echo ""
 log_success "Agent Endpoints"
 echo "  Events:       wazuh-manager.$DOMAIN:1514"
 echo "  Registration: wazuh-registration.$DOMAIN:1515"
-echo "  Password:     $AGENT_PASSWORD"
 echo ""
 
-log_success "Credentials File"
-echo "  Location: $OVERLAY_DIR/.credentials"
-echo "  View:     cat $OVERLAY_DIR/.credentials"
-echo ""
+# generate-credentials.sh writes strong random secrets here for your records and
+# rotation. They are NOT yet wired into the running deployment (see README).
+if [[ -f "$OVERLAY_DIR/.credentials" ]]; then
+    log_success "Generated credentials (for your records / rotation)"
+    echo "  Location: $OVERLAY_DIR/.credentials"
+    echo "  View:     cat $OVERLAY_DIR/.credentials"
+    echo ""
+fi
 
 log_info "Next Steps"
 echo "  1. Log into the dashboard and change the admin password"
@@ -731,7 +856,7 @@ echo ""
 log_info "Documentation"
 echo "  • README:   cat README.md"
 echo "  • Wazuh:    https://documentation.wazuh.com/"
-echo "  • Support:  https://github.com/akamai/wazuh-quickstart/issues"
+echo "  • Support:  https://github.com/johnybradshaw/akamai-wazuh/issues"
 echo ""
 
 log_success "Deployment log saved to: $LOG_FILE"

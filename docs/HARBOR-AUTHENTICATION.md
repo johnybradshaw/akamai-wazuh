@@ -6,7 +6,7 @@ If you're seeing `ImagePullBackOff` or `ErrImagePull` errors, it means Kubernete
 
 ```
 Error: ImagePullBackOff
-Failed to pull image "harbor.company.com/wazuh/wazuh-indexer:4.14.1":
+Failed to pull image "harbor.company.com/wazuh/wazuh-indexer:4.14.5":
 rpc error: code = Unknown desc = failed to pull and unpack image:
 failed to resolve reference: pull access denied
 ```
@@ -163,7 +163,7 @@ export HARBOR_PASSWORD="your-password"
 1. **Test credentials manually:**
    ```bash
    docker login harbor.company.com -u <username>
-   docker pull harbor.company.com/wazuh/wazuh-indexer:4.14.1
+   docker pull harbor.company.com/wazuh/wazuh-indexer:4.14.5
    ```
 
 2. **Check pod events:**
