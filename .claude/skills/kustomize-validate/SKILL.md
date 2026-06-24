@@ -34,7 +34,7 @@ Two versions are intentionally decoupled — flag anything unexpected:
 Run `kubectl kustomize kubernetes/ 2>&1` (or `kustomize build kubernetes/`) and report errors. Expected, non-failing notes:
 - A `commonLabels is deprecated` warning
 - Unresolved `${DOMAIN}` / `${STORAGE_PROVISIONER}` / `${INGRESS_CLASS}` / `${CLUSTER_ISSUER}` placeholders (substituted by `deploy.sh` at deploy time)
-- The build needs the submodule initialised and certs generated (the `secretGenerator` reads cert files); otherwise a missing-files error is expected.
+- The build needs the submodule initialised, certs generated (the `secretGenerator` reads cert files), AND credentials generated (`generate-credentials.sh` writes `production-overlay/internal_users.yml` + `*.patch.yaml`, referenced by the configMapGenerator and `patches:`); otherwise a missing-files error is expected.
 
 ## Output Format
 

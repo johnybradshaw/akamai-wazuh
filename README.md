@@ -109,8 +109,30 @@ Before you begin, ensure you have:
   - Recommended: 3x Linode 4GB ($36/month)
 - **Domain**: DNS hosted on Linode/Akamai
   - Manage at: [cloud.linode.com/domains](https://cloud.linode.com/domains)
-- **API Token**: Domains Read/Write permission
-  - Create at: [cloud.linode.com/profile/tokens](https://cloud.linode.com/profile/tokens)
+- **API Token**: Domains Read/Write permission (only needed for the `akamai`
+  profile / `MANAGE_DNS=true`)
+  - Create in the UI: [cloud.linode.com/profile/tokens](https://cloud.linode.com/profile/tokens), **or**
+  - Create it from the CLI with a label, scope and expiry using
+    [`linode-cli`](https://www.linode.com/docs/products/tools/cli/get-started/):
+
+    ```bash
+    # Wazuh only needs the Domains scope (DNS verification + ExternalDNS).
+    # Pick the date expression for your OS:
+    EXPIRY="$(date -u -d '+365 days' '+%Y-%m-%dT%H:%M:%S')"   # Linux / GNU date
+    # EXPIRY="$(date -u -v+365d '+%Y-%m-%dT%H:%M:%S')"        # macOS / BSD date
+
+    linode-cli profile token-create \
+      --label "wazuh" \
+      --scopes 'domains:read_write' \
+      --expiry "$EXPIRY" \
+      --json | jq -r '.[0].token'
+    ```
+
+    Copy the printed token into `LINODE_API_TOKEN` in `config.env`. ExternalDNS
+    uses it continuously, so set an expiry you're willing to rotate (or omit
+    `--expiry` for a non-expiring token). If you also plan to snapshot the
+    indexer to Linode Object Storage, add `,object_storage:read_write` to
+    `--scopes`. On macOS pipe to `| pbcopy` to copy it to the clipboard.
 
 #### 2. Local Tools
 - **kubectl**: Kubernetes command-line tool
@@ -210,30 +232,35 @@ The deployment takes approximately 5-10 minutes and will:
 9. ✓ Display access credentials
 
 #### Step 4: Access Dashboard
+
+`deploy.sh` generates **strong, unique random credentials** and wires them into
+the deployment — the upstream `admin` / `SecretPassword` defaults are **not**
+used. The generated admin password is printed at the end of the run and saved
+to `kubernetes/production-overlay/.credentials` (chmod 600):
+
 ```bash
-# Default credentials (CHANGE IMMEDIATELY AFTER FIRST LOGIN!)
 Dashboard: https://wazuh.example.com
 Username:  admin
-Password:  SecretPassword
+Password:  <generated — see deploy output / .credentials>
+
+# Retrieve it any time:
+grep WAZUH_DASHBOARD_PASSWORD kubernetes/production-overlay/.credentials | cut -d= -f2- | tr -d '"'
 ```
 
-**IMPORTANT SECURITY NOTE:**
-The current deployment uses **default credentials** from the base wazuh-kubernetes repository:
-- Username: `admin`
-- Password: `SecretPassword`
+**What gets generated and applied** (by `kubernetes/scripts/generate-credentials.sh`):
 
-**You MUST change these credentials immediately after first login!**
+| Credential | Secret / file | Purpose |
+|------------|---------------|---------|
+| `admin` password | `indexer-cred` + `internal_users.yml` (bcrypt) | Dashboard login, filebeat→indexer |
+| `kibanaserver` password | `dashboard-cred` + `internal_users.yml` (bcrypt) | Dashboard→indexer service account |
+| Wazuh API password | `wazuh-api-cred` | `wazuh-wui` API user |
+| Agent registration password | `wazuh-authd-pass` | Agent enrollment |
+| Cluster key | `wazuh-cluster-key` | Manager master/worker cluster auth |
 
-To change the admin password:
-1. Log into the dashboard with default credentials
-2. Navigate to Security → Internal Users
-3. Edit the `admin` user and set a strong password
-4. Save and log out
-5. Log back in with your new password
-
-Future versions will include automatic random password generation. For now, manual password changes are required for security.
-
-Credentials are also saved to `kubernetes/production-overlay/.credentials`
+> The plaintext passwords in the secrets are kept consistent with the bcrypt
+> hashes in `internal_users.yml`, and `deploy.sh` runs `securityadmin.sh` to load
+> them into the indexer security index. It is still good practice to rotate the
+> admin password periodically (see [Credential Rotation](#credential-rotation)).
 
 ## Deploying to an Existing Cluster (git submodule)
 
@@ -545,21 +572,26 @@ kubectl get all -n wazuh -o yaml > backup/wazuh-backup.yaml
 ### Credential Rotation
 
 ```bash
-# Generate new credentials
-cd kubernetes/production-overlay
-rm .credentials internal_users.yml
-cd ../..
-./kubernetes/scripts/generate-credentials.sh kubernetes/production-overlay/
+# 1. Regenerate credentials (answer "yes" when prompted to overwrite).
+#    This rewrites internal_users.yml + the *.patch.yaml secret patches.
+rm -f kubernetes/production-overlay/.credentials \
+      kubernetes/production-overlay/internal_users.yml \
+      kubernetes/production-overlay/*.patch.yaml
+./kubernetes/scripts/generate-credentials.sh kubernetes/production-overlay
 
-# Update Kubernetes secrets
-kubectl delete secret -n wazuh wazuh-indexer-cred
-kubectl create secret generic wazuh-indexer-cred \
-  --from-file=internal_users.yml=kubernetes/production-overlay/internal_users.yml \
-  -n wazuh
+# 2. Re-apply: updates the indexer-conf ConfigMap and the credential Secrets
+kubectl apply -k kubernetes/
 
-# Restart affected pods
-kubectl rollout restart statefulset/wazuh-indexer -n wazuh
-kubectl rollout restart deployment/wazuh-dashboard -n wazuh
+# 3. Load the new admin/kibanaserver hashes into the indexer security index
+./scripts/init-security.sh
+
+# 4. Restart the consumers so they pick up the rotated Secrets
+kubectl rollout restart -n wazuh \
+  statefulset/wazuh-indexer statefulset/wazuh-manager-master \
+  statefulset/wazuh-manager-worker deployment/wazuh-dashboard
+
+# New admin password:
+grep WAZUH_DASHBOARD_PASSWORD kubernetes/production-overlay/.credentials | cut -d= -f2- | tr -d '"'
 ```
 
 ## Troubleshooting

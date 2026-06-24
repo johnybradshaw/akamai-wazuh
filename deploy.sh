@@ -818,27 +818,28 @@ echo "║                                                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
+# Read the generated credentials that were wired into the deployment.
+ADMIN_PASSWORD=$(grep '^WAZUH_DASHBOARD_PASSWORD=' "$OVERLAY_DIR/.credentials" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+AGENT_PASSWORD=$(grep '^WAZUH_AGENT_PASSWORD=' "$OVERLAY_DIR/.credentials" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+
 log_success "Wazuh Dashboard"
 echo "  URL:      https://wazuh.$DOMAIN"
 echo "  Username: admin"
-echo "  Password: SecretPassword"
+echo "  Password: ${ADMIN_PASSWORD:-<see .credentials file>}"
 echo ""
-log_warning "The deployment uses the upstream Wazuh DEFAULT credentials (admin / SecretPassword)."
-log_warning "You MUST change the admin password immediately after first login."
+log_info "These are strong, generated credentials applied to the deployment."
+log_info "Store them securely (password manager / secrets vault) and rotate as needed."
 echo ""
 log_success "Agent Endpoints"
-echo "  Events:       wazuh-manager.$DOMAIN:1514"
-echo "  Registration: wazuh-registration.$DOMAIN:1515"
+echo "  Events:                wazuh-manager.$DOMAIN:1514"
+echo "  Registration:          wazuh-registration.$DOMAIN:1515"
+echo "  Registration password: ${AGENT_PASSWORD:-<see .credentials file>}"
 echo ""
 
-# generate-credentials.sh writes strong random secrets here for your records and
-# rotation. They are NOT yet wired into the running deployment (see README).
-if [[ -f "$OVERLAY_DIR/.credentials" ]]; then
-    log_success "Generated credentials (for your records / rotation)"
-    echo "  Location: $OVERLAY_DIR/.credentials"
-    echo "  View:     cat $OVERLAY_DIR/.credentials"
-    echo ""
-fi
+log_success "Credentials File"
+echo "  Location: $OVERLAY_DIR/.credentials"
+echo "  View:     cat $OVERLAY_DIR/.credentials"
+echo ""
 
 log_info "Next Steps"
 echo "  1. Log into the dashboard and change the admin password"

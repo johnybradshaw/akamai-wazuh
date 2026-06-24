@@ -29,6 +29,8 @@ deploy.log
 # Generated credentials and secrets
 kubernetes/production-overlay/internal_users.yml
 kubernetes/production-overlay/.credentials
+# Generated Kustomize secret patches (contain base64 plaintext credentials)
+kubernetes/production-overlay/*.patch.yaml
 
 # Backup files from sed operations
 *.bak

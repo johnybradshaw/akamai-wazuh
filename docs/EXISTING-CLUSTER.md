@@ -133,7 +133,11 @@ git submodule update --init --recursive
 ( cd kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster && bash ../../../../../scripts/generate-indexer-certs-with-sans.sh )
 ( cd kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http && bash generate_certs.sh )
 
-# 2. Substitute placeholders and apply (sed -i.bak is portable across GNU/BSD)
+# 2. Generate credentials (writes internal_users.yml + *.patch.yaml that the
+#    kustomization references; needs docker for bcrypt hashing)
+bash kubernetes/scripts/generate-credentials.sh kubernetes/production-overlay
+
+# 3. Substitute placeholders and apply (sed -i.bak is portable across GNU/BSD)
 export DOMAIN=example.com STORAGE_PROVISIONER=ebs.csi.aws.com \
        INGRESS_CLASS=nginx CLUSTER_ISSUER=letsencrypt-prod
 sed -i.bak \
@@ -144,6 +148,15 @@ sed -i.bak \
     kubernetes/production-overlay/*.yaml
 rm -f kubernetes/production-overlay/*.bak
 kubectl apply -k kubernetes/
+
+# 4. Load the generated users into the indexer security index
+kubectl exec -n wazuh wazuh-indexer-0 -- bash -c '
+  cd /usr/share/wazuh-indexer/plugins/opensearch-security/tools && \
+  JAVA_HOME=/usr/share/wazuh-indexer/jdk bash securityadmin.sh \
+    -cd /usr/share/wazuh-indexer/config/opensearch-security -icl -nhnv \
+    -cacert /usr/share/wazuh-indexer/config/certs/root-ca.pem \
+    -cert /usr/share/wazuh-indexer/config/certs/admin.pem \
+    -key /usr/share/wazuh-indexer/config/certs/admin-key.pem -h localhost'
 ```
 
 > **Argo CD / Flux:** point the Application/Kustomization at `kubernetes/`, enable
@@ -172,6 +185,14 @@ kubectl get pods,svc,ingress -n wazuh
 
 ## Post-deployment
 
-The deployment ships with the upstream Wazuh **default credentials**
-(`admin` / `SecretPassword`). **Change them immediately** — see
-[README → Change Admin Password](../README.md#change-admin-password).
+`generate-credentials.sh` produces **strong, unique random credentials** and
+wires them into the deployment (the upstream `admin` / `SecretPassword` defaults
+are not used). The generated admin password is saved to
+`kubernetes/production-overlay/.credentials` (chmod 600):
+
+```bash
+grep WAZUH_DASHBOARD_PASSWORD kubernetes/production-overlay/.credentials | cut -d= -f2- | tr -d '"'
+```
+
+Rotating the admin password periodically is still recommended — see
+[README → Credential Rotation](../README.md#credential-rotation).
