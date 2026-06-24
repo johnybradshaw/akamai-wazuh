@@ -61,6 +61,7 @@ akamai-wazuh/
 │   │   └── 003-generate-and-wire-credentials.md
 │   ├── runbooks/                # Operational runbooks
 │   ├── EXISTING-CLUSTER.md      # Bring-your-own-cluster / submodule guide
+│   ├── INTEGRATION.md           # Submodule integration playbook (multi-app / AI assistants)
 │   ├── HARBOR-AUTHENTICATION.md
 │   ├── HARBOR-PROXY-SETUP.md
 │   ├── REGISTRY-POLICY.md
@@ -152,6 +153,10 @@ The `deploy.sh` script performs:
 
 - `akamai` (default): turnkey LKE deployment — installs nginx-ingress, cert-manager, ExternalDNS; verifies Linode DNS; provisions NodeBalancers.
 - `existing-cluster`: bring-your-own infrastructure for any existing cluster — skips the Akamai/Linode provisioning. Selected via `DEPLOY_PROFILE` or `--existing-cluster`. See `docs/EXISTING-CLUSTER.md`.
+
+To consume this repo as a **git submodule** of a larger multi-application
+deployment (and for AI assistants integrating it into another project), follow
+`docs/INTEGRATION.md`.
 
 ### Dry Run Mode
 
