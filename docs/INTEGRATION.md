@@ -30,8 +30,9 @@ Run from the root of the **parent** repository:
 # 1. Add as a submodule and pin it (recursive — there is a nested submodule)
 git submodule add https://github.com/johnybradshaw/akamai-wazuh.git vendor/akamai-wazuh
 git -C vendor/akamai-wazuh checkout <tag-or-commit>      # pin to a known-good ref
-git submodule update --init --recursive
-git add .gitmodules vendor/akamai-wazuh && git commit -m "Vendor akamai-wazuh"
+git add vendor/akamai-wazuh                              # stage the pin BEFORE updating
+git submodule update --init --recursive                 # init the nested wazuh-kubernetes
+git add .gitmodules && git commit -m "Vendor akamai-wazuh"
 
 # 2. Configure for an existing, shared cluster
 cd vendor/akamai-wazuh
@@ -132,8 +133,9 @@ four placeholders (`${DOMAIN}`, `${STORAGE_PROVISIONER}`, `${INGRESS_CLASS}`,
 ```bash
 git -C vendor/akamai-wazuh fetch origin
 git -C vendor/akamai-wazuh checkout <new-tag-or-commit>
+git add vendor/akamai-wazuh                  # stage the new pin BEFORE updating
 git submodule update --init --recursive
-git add vendor/akamai-wazuh && git commit -m "Bump akamai-wazuh to <ref>"
+git commit -m "Bump akamai-wazuh to <ref>"
 ```
 
 Review this repo's [CHANGELOG / releases](https://github.com/johnybradshaw/akamai-wazuh/releases)
@@ -142,8 +144,11 @@ and the [Updating Wazuh](../README.md#updating-wazuh) section before bumping.
 ## Uninstall
 
 ```bash
-kubectl delete -k vendor/akamai-wazuh/kubernetes/   # removes the wazuh namespace workloads
-kubectl delete namespace wazuh                      # if anything remains
+# Deleting the namespace removes all namespaced workloads, PVCs and secrets.
+# (Prefer this over `kubectl delete -k`, which needs the gitignored generated
+# files to build and would fail in a clean workspace.)
+kubectl delete namespace wazuh
+
 # wazuh-storage StorageClass is cluster-scoped — remove only if nothing else uses it:
 kubectl delete storageclass wazuh-storage
 ```

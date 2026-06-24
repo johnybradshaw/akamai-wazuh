@@ -98,8 +98,9 @@ What the `existing-cluster` profile does **not** do (compared to `akamai`):
 # In your infrastructure repository
 git submodule add https://github.com/johnybradshaw/akamai-wazuh.git vendor/akamai-wazuh
 git -C vendor/akamai-wazuh checkout <tag-or-commit>   # pin to a release you control
+git add vendor/akamai-wazuh                           # stage the pin BEFORE updating
 git submodule update --init --recursive               # also pulls wazuh-kubernetes
-git add .gitmodules vendor/akamai-wazuh
+git add .gitmodules
 git commit -m "Vendor akamai-wazuh"
 ```
 
