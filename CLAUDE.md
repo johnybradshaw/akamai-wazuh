@@ -57,7 +57,8 @@ akamai-wazuh/
 │   ├── architecture.md          # High-level architecture overview
 │   ├── decisions/               # Architecture Decision Records
 │   │   ├── 001-use-adr-format.md
-│   │   └── 002-vendor-wazuh-kubernetes-as-submodule.md
+│   │   ├── 002-vendor-wazuh-kubernetes-as-submodule.md
+│   │   └── 003-generate-and-wire-credentials.md
 │   ├── runbooks/                # Operational runbooks
 │   ├── EXISTING-CLUSTER.md      # Bring-your-own-cluster / submodule guide
 │   ├── HARBOR-AUTHENTICATION.md
@@ -201,13 +202,25 @@ When updating versions, bump the image `newTag` in both kustomization files and,
 - Bcrypt hashes generated via Docker httpd image
 - Credentials file has `chmod 600` permissions
 
-### Default Credentials Warning
+### Credentials are generated and wired in
 
-The base Wazuh Kubernetes repo uses default credentials:
-- Username: `admin`
-- Password: `SecretPassword`
+The base Wazuh Kubernetes repo ships default credentials (`admin` /
+`SecretPassword`, cluster key `123a45...`, etc.). `deploy.sh` does **not** use
+them: `kubernetes/scripts/generate-credentials.sh` generates strong random
+values and wires them into the deployment via:
 
-**These must be changed immediately after deployment.**
+- the generated `production-overlay/internal_users.yml` (admin/kibanaserver
+  bcrypt hashes), consumed by the `indexer-conf` configMapGenerator, and
+- strategic-merge patches `production-overlay/*.patch.yaml` overriding the
+  `indexer-cred`, `dashboard-cred`, `wazuh-api-cred`, `wazuh-authd-pass` and
+  `wazuh-cluster-key` secrets.
+
+`securityadmin.sh` (deploy.sh) loads the hashes into the indexer security index.
+All generated files are gitignored, so **run `generate-credentials.sh` (or
+deploy.sh) before `kubectl apply -k kubernetes/`** — the kustomization references
+them. The admin password is printed at the end of the run and saved to
+`production-overlay/.credentials` (chmod 600). Rotating the admin password
+periodically is still recommended.
 
 ## Common Tasks
 
