@@ -88,6 +88,10 @@ What the `existing-cluster` profile does **not** do (compared to `akamai`):
 - ✅ Generates certs + credentials, substitutes your values, applies Kustomize,
   initialises the indexer security plugin
 
+> Running Wazuh **alongside other applications** from an umbrella/platform repo?
+> See the dedicated [Integration playbook](INTEGRATION.md) (multi-app coexistence,
+> GitOps caveats, and an AI-assistant-friendly checklist).
+
 ## Option B — consume this repo as a submodule of your GitOps repo
 
 ```bash

@@ -316,7 +316,10 @@ cd vendor/akamai-wazuh
 ```
 
 See **[docs/EXISTING-CLUSTER.md](docs/EXISTING-CLUSTER.md)** for the full guide,
-including raw `kustomize` usage and Argo CD / Flux notes.
+including raw `kustomize` usage and Argo CD / Flux notes. To run Wazuh **alongside
+other applications** (consuming this repo as a submodule of a larger
+platform/umbrella repo), see **[docs/INTEGRATION.md](docs/INTEGRATION.md)** — a
+step-by-step playbook (also suitable for AI coding assistants).
 
 ## Post-Deployment
 
