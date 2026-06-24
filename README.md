@@ -582,13 +582,20 @@ rm -f kubernetes/production-overlay/.credentials \
 # 2. Re-apply: updates the indexer-conf ConfigMap and the credential Secrets
 kubectl apply -k kubernetes/
 
-# 3. Load the new admin/kibanaserver hashes into the indexer security index
+# 3. Restart the indexer FIRST so it remounts the new internal_users.yml.
+#    It is mounted via subPath, which Kubernetes does NOT refresh in a running
+#    pod, so init-security.sh would otherwise load the OLD hashes.
+kubectl rollout restart statefulset/wazuh-indexer -n wazuh
+kubectl rollout status  statefulset/wazuh-indexer -n wazuh
+
+# 4. Load the new admin/kibanaserver hashes into the indexer security index
+#    (answer "yes" if prompted to reinitialize)
 ./scripts/init-security.sh
 
-# 4. Restart the consumers so they pick up the rotated Secrets
+# 5. Restart the remaining consumers so they pick up the rotated Secrets
 kubectl rollout restart -n wazuh \
-  statefulset/wazuh-indexer statefulset/wazuh-manager-master \
-  statefulset/wazuh-manager-worker deployment/wazuh-dashboard
+  statefulset/wazuh-manager-master statefulset/wazuh-manager-worker \
+  deployment/wazuh-dashboard
 
 # New admin password:
 grep WAZUH_DASHBOARD_PASSWORD kubernetes/production-overlay/.credentials | cut -d= -f2- | tr -d '"'

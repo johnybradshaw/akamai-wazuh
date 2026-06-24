@@ -64,8 +64,11 @@ FORCE=false
 # Deployment profile may be overridden on the CLI; CLI wins over config.env.
 PROFILE_CLI=""
 
-# Logging
+# Logging — secure the log before teeing into it. Everything on stdout/stderr is
+# captured here, so restrict it to the owner (chmod 600) and never print secrets
+# into it (the generated credentials live only in the .credentials file).
 LOG_FILE="$SCRIPT_DIR/deploy.log"
+touch "$LOG_FILE" && chmod 600 "$LOG_FILE"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Colors for output
@@ -818,27 +821,26 @@ echo "║                                                                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Read the generated credentials that were wired into the deployment.
-ADMIN_PASSWORD=$(grep '^WAZUH_DASHBOARD_PASSWORD=' "$OVERLAY_DIR/.credentials" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
-AGENT_PASSWORD=$(grep '^WAZUH_AGENT_PASSWORD=' "$OVERLAY_DIR/.credentials" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
-
+# NOTE: deliberately do NOT print the generated passwords here — stdout is teed
+# into deploy.log, so printing them would persist a second, less-protected copy.
+# The secrets live only in the chmod-600 .credentials file.
 log_success "Wazuh Dashboard"
 echo "  URL:      https://wazuh.$DOMAIN"
 echo "  Username: admin"
-echo "  Password: ${ADMIN_PASSWORD:-<see .credentials file>}"
+echo "  Password: stored in $OVERLAY_DIR/.credentials (not printed, to keep it out of deploy.log)"
 echo ""
-log_info "These are strong, generated credentials applied to the deployment."
+log_info "Strong, unique credentials were generated and applied to the deployment."
 log_info "Store them securely (password manager / secrets vault) and rotate as needed."
 echo ""
 log_success "Agent Endpoints"
-echo "  Events:                wazuh-manager.$DOMAIN:1514"
-echo "  Registration:          wazuh-registration.$DOMAIN:1515"
-echo "  Registration password: ${AGENT_PASSWORD:-<see .credentials file>}"
+echo "  Events:        wazuh-manager.$DOMAIN:1514"
+echo "  Registration:  wazuh-registration.$DOMAIN:1515"
 echo ""
 
-log_success "Credentials File"
+log_success "Credentials File (chmod 600 — the only place secrets are written)"
 echo "  Location: $OVERLAY_DIR/.credentials"
-echo "  View:     cat $OVERLAY_DIR/.credentials"
+echo "  Admin password:  grep WAZUH_DASHBOARD_PASSWORD $OVERLAY_DIR/.credentials | cut -d= -f2- | tr -d '\"'"
+echo "  Agent password:  grep WAZUH_AGENT_PASSWORD $OVERLAY_DIR/.credentials | cut -d= -f2- | tr -d '\"'"
 echo ""
 
 log_info "Next Steps"
