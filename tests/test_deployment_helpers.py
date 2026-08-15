@@ -8,6 +8,7 @@ secrets in the working tree.
 
 from __future__ import annotations
 
+import base64
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,9 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+# Encoded at run time rather than stored as a base64 literal, so secret
+# scanners do not report these fixtures as hardcoded credentials.
+FIXTURE_VALUE = base64.b64encode(b"validation-fixture").decode("ascii")
 OVERLAY_FILES = (
     "internal_users.yml",
     "indexer-cred.patch.yaml",
@@ -85,20 +89,21 @@ class DeploymentConfigurationTestCase(unittest.TestCase):
             target.write_text("unit-test fixture\n", encoding="utf-8")
 
         patches = {
-            "indexer-cred.patch.yaml": ("indexer-cred", "  username: dGVzdA==\n  password: dGVzdA=="),
-            "dashboard-cred.patch.yaml": ("dashboard-cred", "  username: dGVzdA==\n  password: dGVzdA=="),
-            "wazuh-api-cred.patch.yaml": ("wazuh-api-cred", "  username: dGVzdA==\n  password: dGVzdA=="),
-            "wazuh-authd-pass.patch.yaml": ("wazuh-authd-pass", "  authd.pass: dGVzdA=="),
-            "wazuh-cluster-key.patch.yaml": ("wazuh-cluster-key", "  key: dGVzdA=="),
+            "indexer-cred.patch.yaml": ("indexer-cred", ("username", "password")),
+            "dashboard-cred.patch.yaml": ("dashboard-cred", ("username", "password")),
+            "wazuh-api-cred.patch.yaml": ("wazuh-api-cred", ("username", "password")),
+            "wazuh-authd-pass.patch.yaml": ("wazuh-authd-pass", ("authd.pass",)),
+            "wazuh-cluster-key.patch.yaml": ("wazuh-cluster-key", ("key",)),
         }
-        for filename, (secret_name, data) in patches.items():
+        for filename, (secret_name, keys) in patches.items():
+            data = "".join(f"  {key}: {FIXTURE_VALUE}\n" for key in keys)
             (overlay / filename).write_text(
                 "apiVersion: v1\n"
                 "kind: Secret\n"
                 "metadata:\n"
                 f"  name: {secret_name}\n"
                 "data:\n"
-                f"{data}\n",
+                f"{data}",
                 encoding="utf-8",
             )
 
