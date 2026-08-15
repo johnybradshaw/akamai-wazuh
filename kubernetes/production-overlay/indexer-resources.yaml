@@ -76,8 +76,18 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
 
-      # Init containers for system tuning
+      # The upstream maintenance containers use BusyBox as well. DHI defaults
+      # to a non-root user, so root-required operations are made explicit.
       initContainers:
+        - name: volume-mount-hack
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+        - name: increase-the-vm-max-map-count
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            runAsGroup: 0
         - name: sysctl
           image: busybox:1.35
           command:
@@ -88,6 +98,8 @@ spec:
               sysctl -w fs.file-max=65536
           securityContext:
             privileged: true
+            runAsUser: 0
+            runAsGroup: 0
 
   # Volume claim templates for persistent storage
   volumeClaimTemplates:

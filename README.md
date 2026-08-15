@@ -799,15 +799,33 @@ Notes:
 
 Two things carry a version in this repo (see also [CLAUDE.md](CLAUDE.md)):
 
-- **Container image tags** — `newTag` in `kubernetes/kustomization.yml` (what
-  actually gets deployed; currently `4.14.5`).
+- **Active Wazuh image tags** — `newTag` in
+  `kubernetes/kustomization.yml`, which is the configuration applied by
+  `deploy.sh` (currently `4.14.5`). It consumes generated credentials,
+  certificates, and resource patches from `kubernetes/production-overlay/`.
 - **Base manifests** — the `kubernetes/wazuh-kubernetes` **git submodule**,
   pinned in `.gitmodules` to the `4.14.6` branch.
+
+### Hardened Helper Images
+
+The active Kustomization replaces all Wazuh Indexer BusyBox init containers
+with `dhi.io/busybox:1.37-alpine3.23`. Its root-required ownership and
+kernel-tuning steps are explicitly configured to run as UID and GID `0`; this
+preserves the upstream behaviour while leaving the DHI default as non-root for
+other uses.
+
+The prerequisite installer uses
+`dhi.io/external-dns:0.21.0-alpine3.23` for ExternalDNS. The selected release
+supports the repository's existing Linode provider configuration. The Wazuh
+application images remain vendor images because no drop-in Docker Hardened
+Image is available for Wazuh Manager, Indexer, Dashboard, or Agent. See the
+[Docker Hardened Images documentation](https://docs.docker.com/dhi/explore/what/)
+for runtime migration constraints and provenance information.
 
 ### Minor Updates (e.g., 4.14.4 → 4.14.5)
 
 ```bash
-# Update image tags in kustomization.yml
+# Update the active Kustomization image tags
 nano kubernetes/kustomization.yml
 
 # Change image tags
