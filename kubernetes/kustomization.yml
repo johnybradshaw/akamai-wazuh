@@ -171,8 +171,13 @@ commonAnnotations:
 # Images (can be overridden for specific versions)
 # Pinned to the latest stable Wazuh release. The wazuh-kubernetes base
 # manifests are vendored as a git submodule (kubernetes/wazuh-kubernetes,
-# branch 4.14.6); these image tags are what actually gets deployed.
+# branch 4.14.6); these image tags are what actually gets deployed. DHI
+# BusyBox is used for the base and overlay init containers; root-required
+# operations are explicitly configured in indexer-resources.yaml.
 images:
+  - name: busybox
+    newName: dhi.io/busybox
+    newTag: 1.37-alpine3.23
   - name: wazuh/wazuh-indexer
     newTag: 4.14.5
   - name: wazuh/wazuh-manager

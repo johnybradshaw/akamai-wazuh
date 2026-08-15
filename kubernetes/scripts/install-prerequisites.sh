@@ -223,7 +223,9 @@ spec:
       serviceAccountName: external-dns
       containers:
       - name: external-dns
-        image: registry.k8s.io/external-dns/external-dns:v0.14.0
+        # DHI ExternalDNS 0.21 supports the existing Linode provider flags and
+        # runs non-root by default; the pod-level restrictions remain explicit.
+        image: dhi.io/external-dns:0.21.0-alpine3.23
         args:
         - --source=service
         - --source=ingress

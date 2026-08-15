@@ -574,7 +574,8 @@ log_step "Step 7: Generating Secure Credentials"
 
 # Directory for overlay patches and configs
 OVERLAY_DIR="$SCRIPT_DIR/kubernetes/production-overlay"
-# Directory for kustomize execution (one level up to include base resources)
+# Directory for the active Kustomize configuration. It references generated
+# production-overlay files for credentials, certificates, and resource patches.
 KUSTOMIZE_DIR="$SCRIPT_DIR/kubernetes"
 
 bash "$SCRIPT_DIR/kubernetes/scripts/generate-credentials.sh" "$OVERLAY_DIR"

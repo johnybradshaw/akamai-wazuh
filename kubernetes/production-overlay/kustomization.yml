@@ -21,9 +21,9 @@ resources:
   - ../wazuh-kubernetes/wazuh/base/wazuh-ns.yaml
 
   # Indexer (OpenSearch) components
-  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-api-svc.yaml
-  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-sts.yaml
-  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster-indexer-svc.yaml
+  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-api-svc.yaml
+  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/cluster/indexer-sts.yaml
+  - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer-svc.yaml
 
   # Dashboard components
   - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-deploy.yaml
@@ -31,7 +31,7 @@ resources:
 
   # Manager components
   - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-sts.yaml
-  - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-sts.yaml
+  - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-worker-sts.yaml
   - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-cluster-svc.yaml
   - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-master-svc.yaml
   - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh-workers-svc.yaml
@@ -47,23 +47,43 @@ resources:
   - manager-loadbalancers.yaml
   - ingress.yaml
 
-# Generate indexer credentials from internal_users.yml
+# Generated certificate and configuration inputs. Certificate material and
+# internal_users.yml are created by deploy.sh and deliberately ignored by Git.
 secretGenerator:
-  - name: wazuh-indexer-cred
-    namespace: wazuh
-    behavior: replace
+  - name: indexer-certs
     files:
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/node.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/node-key.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/dashboard-key.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/admin.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/admin-key.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/filebeat-key.pem
+  - name: dashboard-certs
+    files:
+      - ../wazuh-kubernetes/wazuh/certs/dashboard_http/cert.pem
+      - ../wazuh-kubernetes/wazuh/certs/dashboard_http/key.pem
+      - ../wazuh-kubernetes/wazuh/certs/indexer_cluster/root-ca.pem
+configMapGenerator:
+  - name: indexer-conf
+    files:
+      - opensearch.yml=../wazuh-kubernetes/wazuh/indexer_stack/wazuh-indexer/indexer_conf/opensearch.yml
       - internal_users.yml
-    options:
-      disableNameSuffixHash: true
+  - name: wazuh-conf
+    files:
+      - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/master.conf
+      - ../wazuh-kubernetes/wazuh/wazuh_managers/wazuh_conf/worker.conf
+  - name: dashboard-conf
+    files:
+      - ../wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard_conf/opensearch_dashboards.yml
 
 # Patches to customize the deployment
 patches:
-  # Convert default LoadBalancer services to ClusterIP
+  # Convert default LoadBalancer services to ClusterIP. This file contains
+  # multiple strategic-merge patches, each with its own resource identity.
   - path: service-patches.yaml
-    target:
-      kind: Service
-      version: v1
 
   # Resource limits for manager master
   - path: manager-master-resources.yaml
@@ -89,8 +109,37 @@ patches:
       kind: Deployment
       name: wazuh-dashboard
 
+  # Generated credentials replace the upstream defaults. These files are
+  # emitted by generate-credentials.sh and deliberately ignored by Git.
+  - path: indexer-cred.patch.yaml
+    target:
+      kind: Secret
+      name: indexer-cred
+  - path: dashboard-cred.patch.yaml
+    target:
+      kind: Secret
+      name: dashboard-cred
+  - path: wazuh-api-cred.patch.yaml
+    target:
+      kind: Secret
+      name: wazuh-api-cred
+  - path: wazuh-authd-pass.patch.yaml
+    target:
+      kind: Secret
+      name: wazuh-authd-pass
+  - path: wazuh-cluster-key.patch.yaml
+    target:
+      kind: Secret
+      name: wazuh-cluster-key
+
 # Images (can be overridden for specific versions)
+# DHI BusyBox is applied to all upstream and overlay init containers. The
+# matching security-context patch keeps the root-required maintenance actions
+# functional while the image defaults to a non-root user.
 images:
+  - name: busybox
+    newName: dhi.io/busybox
+    newTag: 1.37-alpine3.23
   - name: wazuh/wazuh-indexer
     newTag: 4.14.5
   - name: wazuh/wazuh-manager
