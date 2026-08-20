@@ -102,10 +102,6 @@ if [ ! -d "$DASHBOARD_CERT_DIR" ]; then
 fi
 
 cd "$DASHBOARD_CERT_DIR"
-if [ ! -f "generate_certs.sh" ]; then
-    log_error "Certificate generation script not found: $DASHBOARD_CERT_DIR/generate_certs.sh"
-    exit 1
-fi
 
 # Remove old certificates if they exist
 if [ -f "cert.pem" ]; then
@@ -113,8 +109,35 @@ if [ -f "cert.pem" ]; then
     rm -f *.pem
 fi
 
-bash generate_certs.sh > /dev/null 2>&1
-log_success "Dashboard certificates generated"
+# Prefer the improved generator, exactly as Step 2 does for the indexer.
+#
+# The stock upstream generate_certs.sh in this directory is a single
+# `openssl req -x509 -batch -nodes` with no -subj and no config, so it emits a
+# placeholder subject (O = Internet Widgits Pty Ltd) and NO subjectAltName at
+# all. Go's TLS stack -- which is Traefik's, and most modern proxies' -- has
+# ignored CN for hostname verification since Go 1.15, so a cert with no SAN can
+# be verified against no hostname whatsoever, and anything fronting the
+# Dashboard is forced into insecureSkipVerify. The improved generator mints a
+# dedicated CA and signs a normal server cert with real SANs, so the proxy can
+# pin ca.pem and verify properly.
+if [ -f "$SCRIPT_DIR/generate-dashboard-certs-with-sans.sh" ]; then
+    log_info "Using improved certificate generation (with Subject Alternative Names)..."
+    if bash "$SCRIPT_DIR/generate-dashboard-certs-with-sans.sh"; then
+        log_success "Dashboard certificates generated with SANs"
+        log_info "Pin $DASHBOARD_CERT_DIR/ca.pem in whatever proxies the Dashboard"
+    else
+        log_error "Dashboard certificate generation failed"
+        exit 1
+    fi
+elif [ -f "generate_certs.sh" ]; then
+    log_warning "Improved script not found, using default generation..."
+    bash generate_certs.sh > /dev/null 2>&1
+    log_warning "Dashboard certificates generated WITHOUT SANs -- a proxy in front"
+    log_warning "of the Dashboard will be unable to verify them (see script header)"
+else
+    log_error "No dashboard certificate generation script found"
+    exit 1
+fi
 
 # Return to project root
 cd "$PROJECT_ROOT"

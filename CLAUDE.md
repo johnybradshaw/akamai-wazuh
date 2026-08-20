@@ -51,6 +51,7 @@ akamai-wazuh/
 │   ├── mirror-images.sh         # Image mirroring
 │   ├── setup-harbor-credentials.sh
 │   ├── generate-indexer-certs-with-sans.sh  # Indexer cert generation
+│   ├── generate-dashboard-certs-with-sans.sh # Dashboard HTTPS cert generation
 │   ├── init-security.sh         # Security initialisation
 │   └── regenerate-certs.sh      # Certificate regeneration
 ├── docs/                        # Additional documentation
@@ -116,6 +117,7 @@ Each major directory (`kubernetes/`, `scripts/`, `agent-deployment/`) has its ow
 | `scripts/mirror-images.sh` | Mirror images to private registry |
 | `scripts/setup-harbor-credentials.sh` | Configure Harbor authentication |
 | `scripts/generate-indexer-certs-with-sans.sh` | Generate indexer certs with SANs |
+| `scripts/generate-dashboard-certs-with-sans.sh` | Generate Dashboard HTTPS cert with SANs + a CA to pin |
 | `scripts/init-security.sh` | Initialise Wazuh security |
 | `scripts/regenerate-certs.sh` | Regenerate TLS certificates |
 

@@ -12,6 +12,7 @@ Utility scripts for registry management, certificate generation, image mirroring
 | `mirror-images.sh` | Mirrors Wazuh images to a private registry (e.g., Harbor) |
 | `setup-harbor-credentials.sh` | Configures Harbor authentication for K8s image pulls |
 | `generate-indexer-certs-with-sans.sh` | Generates indexer TLS certificates with Subject Alternative Names |
+| `generate-dashboard-certs-with-sans.sh` | Generates the Dashboard HTTPS listener certificate with SANs, plus a CA to pin in a fronting proxy |
 | `init-security.sh` | Initialises Wazuh security configuration |
 | `regenerate-certs.sh` | Regenerates TLS certificates for the deployment |
 
