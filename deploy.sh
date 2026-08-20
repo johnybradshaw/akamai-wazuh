@@ -538,12 +538,41 @@ if [[ "$SKIP_CERTS" == "false" ]]; then
         log_warning "Indexer certificates already exist, skipping"
     fi
 
-    # Generate dashboard certificates
+    # Generate dashboard HTTPS certificates with SANs
+    #
+    # Guarded on cert.pem, which is what this directory actually produces --
+    # nothing here ever creates a root-ca.pem, so guarding on that name meant
+    # the "already exist" branch was unreachable and certs were reissued on
+    # every run.
     log_info "Generating Wazuh Dashboard certificates..."
     cd "$WAZUH_K8S_DIR/wazuh/certs/dashboard_http"
-    if [[ ! -f "root-ca.pem" ]]; then
-        bash generate_certs.sh
-        log_success "Dashboard certificates generated"
+    if [[ ! -f "cert.pem" ]]; then
+        # Prefer the improved generator, exactly as the indexer does above. The
+        # stock upstream generate_certs.sh emits a placeholder subject and NO
+        # subjectAltName, and Go's TLS stack (Traefik's, and most modern
+        # proxies') has ignored CN for hostname verification since Go 1.15 -- so
+        # a cert from it can be verified against no hostname at all, forcing
+        # anything in front of the Dashboard into insecureSkipVerify.
+        if [[ -f "$SCRIPT_DIR/scripts/generate-dashboard-certs-with-sans.sh" ]]; then
+            log_info "Using improved certificate generation (with Subject Alternative Names)"
+            if bash "$SCRIPT_DIR/scripts/generate-dashboard-certs-with-sans.sh"; then
+                if [[ -f "cert.pem" && -f "key.pem" && -f "ca.pem" ]]; then
+                    log_success "Dashboard certificates generated with SANs"
+                    log_info "Pin $(pwd)/ca.pem in whatever proxies the Dashboard"
+                else
+                    log_error "Dashboard certificate generation completed but files are missing"
+                    exit 1
+                fi
+            else
+                log_error "Dashboard certificate generation failed"
+                exit 1
+            fi
+        else
+            log_warning "Improved script not found, using default generation"
+            bash generate_certs.sh
+            log_warning "Dashboard certificates generated WITHOUT SANs -- a proxy in front"
+            log_warning "of the Dashboard will be unable to verify them"
+        fi
     else
         log_warning "Dashboard certificates already exist, skipping"
     fi

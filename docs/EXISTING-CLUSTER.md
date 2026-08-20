@@ -136,7 +136,7 @@ GitOps flow, render with substitution in CI, e.g.:
 # 1. Initialise submodules and generate certs (once)
 git submodule update --init --recursive
 ( cd kubernetes/wazuh-kubernetes/wazuh/certs/indexer_cluster && bash ../../../../../scripts/generate-indexer-certs-with-sans.sh )
-( cd kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http && bash generate_certs.sh )
+( cd kubernetes/wazuh-kubernetes/wazuh/certs/dashboard_http && bash ../../../../../scripts/generate-dashboard-certs-with-sans.sh )
 
 # 2. Generate credentials (writes internal_users.yml + *.patch.yaml that the
 #    kustomization references; needs docker for bcrypt hashing)
