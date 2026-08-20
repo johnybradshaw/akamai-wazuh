@@ -71,9 +71,24 @@ log_info "Generating secure random passwords..."
 # The fourth lookahead demands a NON-ALPHANUMERIC character. `tr -d "=+/"`
 # deletes the only three non-alphanumerics base64 can emit, so the previous
 # one-liner produced a strictly [A-Za-z0-9] string that could never match --
-# a 100% failure rate, not an unlucky draw. create_user.py then rejected it at
-# container start with WazuhError 5007 ("Insecure user password provided"),
-# aborted API-user setup, and left wazuh-manager-master-0 in CrashLoopBackOff.
+# a 100% failure rate, not an unlucky draw. create_user.py then rejects it at
+# container start with WazuhError 5007 ("Insecure user password provided").
+#
+# WHAT THAT COSTS -- stated precisely, because an earlier version of this
+# comment overstated it and sent an investigation down the wrong path. The
+# manager logs the rejection on every boot:
+#
+#     WazuhError: Error 5007 - Insecure user password provided
+#     There was an error configuring the API user
+#     [cont-init.d] 2-manager: exited 0.      <-- exits ZERO
+#
+# and then starts normally. The API user is created through a path that does
+# not run the regex, so it exists with the generated password and
+# authenticates fine (POST /security/user/authenticate returns 200); only the
+# idempotent update_user re-set on later boots validates and fails. This is
+# recurring log noise and a credential that does not meet the policy it is
+# measured against -- NOT a startup failure. A crashlooping manager seen
+# alongside it has some other cause.
 #
 # Only WAZUH_API_PASSWORD is checked against that regex (the indexer and authd
 # passwords have no complexity policy, which is why a broken generator still
