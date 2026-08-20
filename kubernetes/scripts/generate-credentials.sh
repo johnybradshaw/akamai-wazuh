@@ -62,11 +62,48 @@ fi
 # ============================================================================
 log_info "Generating secure random passwords..."
 
-# Generate 32-character random passwords
-ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
-KIBANASERVER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
-WAZUH_API_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
-AGENT_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+# Generate 32-character random passwords.
+#
+# The Wazuh API validates passwords against this regex (wazuh/security.py):
+#
+#   ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$
+#
+# The fourth lookahead demands a NON-ALPHANUMERIC character. `tr -d "=+/"`
+# deletes the only three non-alphanumerics base64 can emit, so the previous
+# one-liner produced a strictly [A-Za-z0-9] string that could never match --
+# a 100% failure rate, not an unlucky draw. create_user.py then rejected it at
+# container start with WazuhError 5007 ("Insecure user password provided"),
+# aborted API-user setup, and left wazuh-manager-master-0 in CrashLoopBackOff.
+#
+# Only WAZUH_API_PASSWORD is checked against that regex (the indexer and authd
+# passwords have no complexity policy, which is why a broken generator still
+# left the indexer healthy). One generator is applied to all four anyway:
+# strengthening the others costs nothing, and a single code path removes the
+# chance of wiring a non-compliant credential into the API later.
+gen_password() {
+    local candidate
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        # 31 alphanumerics plus a guaranteed '.' -- URL- and shell-safe, unlike
+        # the '+' and '/' base64 would otherwise contribute (the API password is
+        # embedded in dashboard connection URLs).
+        candidate="$(openssl rand -base64 48 | tr -d '=+/' | cut -c1-31)."
+        if printf '%s' "$candidate" | grep -q '[a-z]' &&
+           printf '%s' "$candidate" | grep -q '[A-Z]' &&
+           printf '%s' "$candidate" | grep -q '[0-9]'; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    # stderr, not stdout: this runs inside $( ), so a stdout message would be
+    # captured into the variable instead of reaching the operator.
+    log_error "Could not generate a policy-compliant password after 10 attempts" >&2
+    return 1
+}
+
+ADMIN_PASSWORD=$(gen_password)
+KIBANASERVER_PASSWORD=$(gen_password)
+WAZUH_API_PASSWORD=$(gen_password)
+AGENT_PASSWORD=$(gen_password)
 # Wazuh cluster key must be exactly 32 characters (hex keeps it 32 chars exactly)
 WAZUH_CLUSTER_KEY=$(openssl rand -hex 16)
 
