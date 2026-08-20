@@ -31,7 +31,13 @@
 #   cert.pem / key.pem    the leaf the Dashboard serves (names below)
 #
 # The leaf is a plain server certificate (CA:FALSE) and the pin is the CA, so
-# reissuing the leaf does not invalidate whatever the proxy has pinned.
+# reissuing the leaf does not invalidate whatever the proxy has pinned. To make
+# that true in practice and not just on paper, a rerun REUSES an existing
+# ca.pem/ca-key.pem pair rather than minting a new CA: rotating the leaf is the
+# common operation, and it must not silently break every proxy that already
+# trusts the advertised pin. Replacing the CA is a deliberate, separate act --
+# set WAZUH_DASHBOARD_ROTATE_CA=true -- because it requires redistributing the
+# new ca.pem to every proxy before the change takes effect.
 #
 # This is deliberately NOT chained to the indexer cluster root CA
 # (wazuh/certs/indexer_cluster/root-ca.pem). That CA secures indexer<->node and
@@ -54,12 +60,19 @@
 #                              for an external hostname the Dashboard is served
 #                              under. Example:
 #                                WAZUH_DASHBOARD_EXTRA_DNS="wazuh.example.com"
+#   WAZUH_DASHBOARD_ROTATE_CA  Set to "true" to discard an existing CA and mint
+#                              a new one (default: false -- an existing CA is
+#                              reused so the proxy's pin keeps working). Every
+#                              proxy pinning the old ca.pem MUST be given the
+#                              new one; until it is, it will reject the
+#                              Dashboard.
 # ============================================================================
 
 set -euo pipefail
 
 NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
 EXTRA_DNS="${WAZUH_DASHBOARD_EXTRA_DNS:-}"
+ROTATE_CA="${WAZUH_DASHBOARD_ROTATE_CA:-false}"
 
 # Generate certificates in the current working directory (where the script is
 # called from). Do NOT change to the script's directory.
@@ -70,21 +83,52 @@ echo "Target directory: $(pwd)"
 echo ""
 
 # Clean up old material.
-rm -f ./*.pem ./*.csr ./*.srl ./*.cnf
+#
+# Deliberately scoped to the leaf and to temporary files. ca.pem/ca-key.pem are
+# the operator's advertised pin and survive a rerun unless CA rotation was asked
+# for explicitly -- see WAZUH_DASHBOARD_ROTATE_CA in the header.
+rm -f ./cert.pem ./key.pem ./*.csr ./*.srl ./*.cnf
+
+if [ "$ROTATE_CA" = "true" ]; then
+    echo "WARNING: WAZUH_DASHBOARD_ROTATE_CA=true -- discarding any existing CA."
+    echo "         Every proxy pinning the old ca.pem will reject the Dashboard"
+    echo "         until it is given the new ca.pem."
+    rm -f ./ca.pem ./ca-key.pem
+fi
 
 # ============================================================================
 # Dashboard HTTPS CA
 # ============================================================================
-echo "1. Generating Dashboard HTTPS CA..."
+echo "1. Dashboard HTTPS CA..."
 
-openssl genrsa -out ca-key.pem 2048 2>/dev/null
+# A half-present CA cannot be reused and must not be silently replaced: minting
+# a fresh one here would invalidate a pin the operator may still be relying on,
+# with no signal that it happened. Fail loudly and make them choose.
+if [ -f ca.pem ] && [ ! -f ca-key.pem ]; then
+    echo "   [FAIL] ca.pem exists but ca-key.pem is missing -- cannot sign a new"
+    echo "          leaf against the pinned CA. Restore ca-key.pem, or rerun with"
+    echo "          WAZUH_DASHBOARD_ROTATE_CA=true to mint a new CA (and then"
+    echo "          redistribute ca.pem to every proxy that pins it)."
+    exit 1
+fi
+if [ ! -f ca.pem ] && [ -f ca-key.pem ]; then
+    echo "   [FAIL] ca-key.pem exists but ca.pem is missing -- refusing to guess."
+    echo "          Restore ca.pem, or rerun with WAZUH_DASHBOARD_ROTATE_CA=true."
+    exit 1
+fi
 
-openssl req -days 3650 -new -x509 -sha256 \
-  -key ca-key.pem \
-  -out ca.pem \
-  -subj "/C=US/L=California/O=Company/CN=wazuh-dashboard-http-ca"
+if [ -f ca.pem ] && [ -f ca-key.pem ]; then
+    echo "   [ok] reusing existing ca.pem (the pin in your proxy stays valid)"
+else
+    openssl genrsa -out ca-key.pem 2048 2>/dev/null
 
-echo "   [ok] ca.pem created"
+    openssl req -days 3650 -new -x509 -sha256 \
+      -key ca-key.pem \
+      -out ca.pem \
+      -subj "/C=US/L=California/O=Company/CN=wazuh-dashboard-http-ca"
+
+    echo "   [ok] ca.pem created"
+fi
 
 # ============================================================================
 # Dashboard HTTPS server certificate (with SANs)
@@ -186,5 +230,6 @@ echo ""
 echo "[ok] Dashboard HTTPS certificate generation completed successfully!"
 echo ""
 echo "Generated files:"
-echo "  - ca.pem + ca-key.pem   (Dashboard HTTPS CA -- pin ca.pem in your proxy)"
+echo "  - ca.pem + ca-key.pem   (Dashboard HTTPS CA -- pin ca.pem in your proxy;"
+echo "                           reused on rerun unless WAZUH_DASHBOARD_ROTATE_CA=true)"
 echo "  - cert.pem + key.pem    (Dashboard HTTPS server cert with SANs)"

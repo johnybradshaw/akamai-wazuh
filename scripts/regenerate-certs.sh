@@ -103,11 +103,16 @@ fi
 
 cd "$DASHBOARD_CERT_DIR"
 
-# Remove old certificates if they exist
-if [ -f "cert.pem" ]; then
-    log_warning "Removing existing dashboard certificates..."
-    rm -f *.pem
-fi
+# Deliberately NOT removing *.pem here.
+#
+# ca.pem/ca-key.pem in this directory are the CA an operator pins in whatever
+# proxies the Dashboard; deleting them on every regeneration run would break
+# that pin silently. The improved generator below removes exactly what it is
+# about to reissue (the leaf) and reuses the CA, and the stock fallback
+# overwrites cert.pem/key.pem in place. Neither needs a blanket rm.
+#
+# To replace the CA as well, rerun with WAZUH_DASHBOARD_ROTATE_CA=true and
+# redistribute the new ca.pem to every proxy that pins it.
 
 # Prefer the improved generator, exactly as Step 2 does for the indexer.
 #
