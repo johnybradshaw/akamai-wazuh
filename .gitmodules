@@ -1,4 +1,15 @@
 [submodule "kubernetes/wazuh-kubernetes"]
 	path = kubernetes/wazuh-kubernetes
 	url = https://github.com/wazuh/wazuh-kubernetes.git
-	branch = 4.14.6
+	# No `branch` key on purpose. This submodule is pinned by COMMIT
+	# (e918d81176), which is the only thing that pins it -- `branch` is
+	# consulted solely by `git submodule update --remote`.
+	#
+	# It previously read `branch = 4.14.6`. Upstream deleted that branch and
+	# never tagged it under that name (the live refs are branches 4.14.8 /
+	# 4.14.9 and tags v4.14.0..v4.14.7), so the key named a ref that does not
+	# exist and `git clone -b 4.14.6` fails outright.
+	#
+	# DO NOT run `git submodule update --remote` here: with no branch key it
+	# follows upstream's default branch, which is alpha. Move the pin with an
+	# explicit `git -C kubernetes/wazuh-kubernetes checkout <ref>` instead.

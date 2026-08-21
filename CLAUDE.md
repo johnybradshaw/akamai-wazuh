@@ -30,7 +30,7 @@ akamai-wazuh/
 │   ├── deploy-agents-bulk.sh    # Bulk VM deployment
 │   ├── vm-list.txt.example      # Example VM list
 │   └── README.md                # Agent deployment docs
-├── .gitmodules                  # Pins the wazuh-kubernetes submodule (branch 4.14.6)
+├── .gitmodules                  # Pins the wazuh-kubernetes submodule (by commit)
 ├── kubernetes/                  # Kubernetes manifests
 │   ├── kustomization.yml        # Main kustomize config (active deploy target)
 │   ├── wazuh-kubernetes/        # Wazuh K8s base manifests (git submodule, pinned)
@@ -181,8 +181,8 @@ deployment (and for AI assistants integrating it into another project), follow
 
 Images are managed via `newTag` in kustomization files. **Note:** There are two version references in this repo, decoupled on purpose:
 - `newTag` in `kubernetes/kustomization.yml` and `kubernetes/production-overlay/kustomization.yml` — the container image tags actually deployed (currently `4.14.5`, the latest stable Wazuh release).
-- The `kubernetes/wazuh-kubernetes` **git submodule**, pinned in `.gitmodules` to the `4.14.6` branch — the base manifests. Upstream publishes no 4.14 tags, only branches; `4.14.6` is the most mature (`4.14.7`/`main` are alpha).
-- `WAZUH_VERSION` in `config.env` / `deploy.sh` (default `4.14.6`) is now only a **fallback clone ref** used when the repo was not checked out with submodules (e.g. a source tarball).
+- The `kubernetes/wazuh-kubernetes` **git submodule**, pinned **by commit** (`e918d81176`) — the base manifests. That commit came from upstream's `4.14.6` branch, which upstream has since **deleted**; it was never tagged under that name either. Live upstream refs are branches `4.14.8` / `4.14.9` and tags `v4.14.0`..`v4.14.7`. `.gitmodules` deliberately carries **no `branch` key**, so do not run `git submodule update --remote` (it would follow upstream's default branch, which is alpha) — move the pin with an explicit `git -C kubernetes/wazuh-kubernetes checkout <ref>`.
+- `WAZUH_K8S_COMMIT` in `config.env` / `deploy.sh` is only a **fallback clone target** used when the repo was not checked out with submodules (e.g. a source tarball). It is a commit rather than a named ref so the fallback yields byte-identical manifests to the submodule. It replaced `WAZUH_VERSION`, whose `4.14.6` default named the deleted branch and failed with `Remote branch 4.14.6 not found`.
 
 When updating versions, bump the image `newTag` in both kustomization files and, if needed, move the submodule pointer (see "Update Wazuh Version"). The `kustomize-validate` skill checks consistency.
 
@@ -304,7 +304,7 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 |----------|---------|-------------|
 | `DEPLOY_PROFILE` | `akamai` | `akamai` or `existing-cluster` |
 | `WAZUH_NAMESPACE` | `wazuh` | Kubernetes namespace |
-| `WAZUH_VERSION` | `4.14.6` | Fallback wazuh-kubernetes clone ref (submodule normally used) |
+| `WAZUH_K8S_COMMIT` | `e918d81176…` | Fallback wazuh-kubernetes clone commit (submodule normally used) |
 | `STORAGE_PROVISIONER` | `linodebs.csi.linode.com` | CSI provisioner for `wazuh-storage` |
 | `INGRESS_CLASS` | `nginx` | Ingress class for the dashboard |
 | `CLUSTER_ISSUER` | `letsencrypt-prod` | cert-manager ClusterIssuer |

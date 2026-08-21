@@ -48,11 +48,26 @@ elif [ -f "$PROJECT_ROOT/.gitmodules" ] && git -C "$PROJECT_ROOT" rev-parse --is
     git -C "$PROJECT_ROOT" submodule update --init --recursive kubernetes/wazuh-kubernetes
     log_success "Submodule initialised"
 else
-    # Fallback for non-git checkouts: clone the pinned ref.
-    log_info "Cloning wazuh-kubernetes repository (${WAZUH_K8S_REF:-4.14.6})..."
-    git clone https://github.com/wazuh/wazuh-kubernetes.git \
-        -b "${WAZUH_K8S_REF:-4.14.6}" --depth=1 "$WAZUH_K8S_DIR"
-    log_success "Repository cloned successfully"
+    # Fallback for non-git checkouts: fetch the exact pinned COMMIT, not a named
+    # ref. `clone -b 4.14.6` used to live here, but upstream deleted that branch
+    # and never tagged it under that name, so this path failed outright with
+    # "Remote branch 4.14.6 not found". A commit also guarantees this produces
+    # the same tree as the submodule.
+    WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-e918d811760b943a4b3acca02e691b70b1a0b597}"
+    log_info "Fetching wazuh-kubernetes at pinned commit (${WAZUH_K8S_COMMIT:0:10})..."
+    git init -q "$WAZUH_K8S_DIR"
+    # Idempotent by design -- see the matching note in deploy.sh. A failed fetch
+    # leaves `origin` behind, and a plain `remote add` on the retry dies with
+    # "remote origin already exists" under set -e before reaching the fetch.
+    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git 2>/dev/null ||
+        git -C "$WAZUH_K8S_DIR" remote set-url origin https://github.com/wazuh/wazuh-kubernetes.git
+    if ! git -C "$WAZUH_K8S_DIR" fetch -q --depth=1 origin "$WAZUH_K8S_COMMIT"; then
+        log_error "Could not fetch wazuh-kubernetes commit $WAZUH_K8S_COMMIT"
+        log_info "Re-running this script retries the fetch; no cleanup needed."
+        exit 1
+    fi
+    git -C "$WAZUH_K8S_DIR" checkout -q FETCH_HEAD
+    log_success "Base manifests fetched at pinned commit"
 fi
 
 # Step 2: Generate indexer cluster certificates with SANs
