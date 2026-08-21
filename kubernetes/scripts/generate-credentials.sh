@@ -151,6 +151,22 @@ cat > "$INTERNAL_USERS_FILE" <<EOF
 # Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 ---
+# REQUIRED by OpenSearch Security 7. Without it securityadmin.sh rejects this
+# file outright --
+#
+#     ERR: Seems .../internal_users.yml is not in OpenSearch Security 7 format:
+#     java.io.IOException: A version of 2 must have a _meta key for INTERNALUSERS
+#
+# -- and skips ONLY this document while reporting SUCC for the other eight, then
+# exits 255. The security index is left with roles, tenants and action groups but
+# no internal users at all, so admin/kibanaserver do not exist: the Dashboard
+# cannot authenticate and Filebeat gets "503 OpenSearch Security not initialized"
+# from the indexer. Upstream's own internal_users.yml carries this block; the
+# generated replacement dropped it.
+_meta:
+  type: "internalusers"
+  config_version: 2
+
 # Admin user - Full access to Wazuh Dashboard
 admin:
   hash: "${ADMIN_HASH}"
