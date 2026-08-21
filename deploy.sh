@@ -498,10 +498,19 @@ else
     # Shallow-fetch the exact pinned commit. `clone -b` cannot be used: the
     # commit is not the tip of any surviving branch or tag.
     git init -q "$WAZUH_K8S_DIR"
-    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git
+    # `remote add` must be idempotent. A failed fetch below exits leaving the
+    # directory git-initialised with an `origin` remote, but WITHOUT
+    # wazuh/kustomization.yml -- so the guard at the top of this block sends the
+    # next run straight back here. `remote add` then fails "remote origin
+    # already exists" and set -e kills the script before the retry can even
+    # reach the fetch, so the advertised "try again" needs a manual rm -rf to
+    # work. Reuse the remote instead.
+    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git 2>/dev/null ||
+        git -C "$WAZUH_K8S_DIR" remote set-url origin https://github.com/wazuh/wazuh-kubernetes.git
     if ! git -C "$WAZUH_K8S_DIR" fetch -q --depth=1 origin "$WAZUH_K8S_COMMIT"; then
         log_error "Could not fetch wazuh-kubernetes commit $WAZUH_K8S_COMMIT"
         log_info "Check network access to github.com, or set WAZUH_K8S_COMMIT to a reachable commit"
+        log_info "Re-running this script retries the fetch; no cleanup needed."
         exit 1
     fi
     git -C "$WAZUH_K8S_DIR" checkout -q FETCH_HEAD

@@ -56,9 +56,14 @@ else
     WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-e918d811760b943a4b3acca02e691b70b1a0b597}"
     log_info "Fetching wazuh-kubernetes at pinned commit (${WAZUH_K8S_COMMIT:0:10})..."
     git init -q "$WAZUH_K8S_DIR"
-    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git
+    # Idempotent by design -- see the matching note in deploy.sh. A failed fetch
+    # leaves `origin` behind, and a plain `remote add` on the retry dies with
+    # "remote origin already exists" under set -e before reaching the fetch.
+    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git 2>/dev/null ||
+        git -C "$WAZUH_K8S_DIR" remote set-url origin https://github.com/wazuh/wazuh-kubernetes.git
     if ! git -C "$WAZUH_K8S_DIR" fetch -q --depth=1 origin "$WAZUH_K8S_COMMIT"; then
         log_error "Could not fetch wazuh-kubernetes commit $WAZUH_K8S_COMMIT"
+        log_info "Re-running this script retries the fetch; no cleanup needed."
         exit 1
     fi
     git -C "$WAZUH_K8S_DIR" checkout -q FETCH_HEAD
