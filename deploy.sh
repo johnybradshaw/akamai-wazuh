@@ -242,9 +242,14 @@ esac
 # Defaults for optional variables (defaults are tuned for the akamai/LKE profile)
 # ----------------------------------------------------------------------------
 WAZUH_NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
-# wazuh-kubernetes submodule ref (used only as a fallback clone target when the
-# repository was not checked out with submodules, e.g. a source tarball).
-WAZUH_VERSION="${WAZUH_VERSION:-4.14.6}"
+# Exact wazuh-kubernetes commit vendored as the kubernetes/wazuh-kubernetes
+# submodule. Used only as a fallback clone target when the repository was not
+# checked out with submodules (e.g. a source tarball).
+#
+# A COMMIT, not a named ref, so the fallback produces byte-identical manifests
+# to the submodule. The old default (`4.14.6`) named an upstream branch that no
+# longer exists, so this path failed with "Remote branch 4.14.6 not found".
+WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-e918d811760b943a4b3acca02e691b70b1a0b597}"
 DEPLOYMENT_TIMEOUT="${DEPLOYMENT_TIMEOUT:-600}"
 
 # Bring-your-own-infrastructure knobs (substituted into the Kustomize overlay).
@@ -489,12 +494,18 @@ elif [[ -f "$SCRIPT_DIR/.gitmodules" ]] && git -C "$SCRIPT_DIR" rev-parse --is-i
     fi
 else
     # Fallback for non-git checkouts (e.g. a source tarball): clone the pinned ref.
-    log_warning "Repository was not checked out with submodules; cloning wazuh-kubernetes (${WAZUH_VERSION})..."
-    git clone https://github.com/wazuh/wazuh-kubernetes.git \
-        -b "$WAZUH_VERSION" \
-        --depth=1 \
-        "$WAZUH_K8S_DIR"
-    log_success "Repository cloned successfully"
+    log_warning "Repository was not checked out with submodules; fetching wazuh-kubernetes (${WAZUH_K8S_COMMIT:0:10})..."
+    # Shallow-fetch the exact pinned commit. `clone -b` cannot be used: the
+    # commit is not the tip of any surviving branch or tag.
+    git init -q "$WAZUH_K8S_DIR"
+    git -C "$WAZUH_K8S_DIR" remote add origin https://github.com/wazuh/wazuh-kubernetes.git
+    if ! git -C "$WAZUH_K8S_DIR" fetch -q --depth=1 origin "$WAZUH_K8S_COMMIT"; then
+        log_error "Could not fetch wazuh-kubernetes commit $WAZUH_K8S_COMMIT"
+        log_info "Check network access to github.com, or set WAZUH_K8S_COMMIT to a reachable commit"
+        exit 1
+    fi
+    git -C "$WAZUH_K8S_DIR" checkout -q FETCH_HEAD
+    log_success "Base manifests fetched at pinned commit"
 fi
 
 # Sanity-check that the base manifests are usable before continuing.
