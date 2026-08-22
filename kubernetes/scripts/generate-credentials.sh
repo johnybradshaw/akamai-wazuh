@@ -71,9 +71,43 @@ log_info "Generating secure random passwords..."
 # The fourth lookahead demands a NON-ALPHANUMERIC character. `tr -d "=+/"`
 # deletes the only three non-alphanumerics base64 can emit, so the previous
 # one-liner produced a strictly [A-Za-z0-9] string that could never match --
-# a 100% failure rate, not an unlucky draw. create_user.py then rejected it at
-# container start with WazuhError 5007 ("Insecure user password provided"),
-# aborted API-user setup, and left wazuh-manager-master-0 in CrashLoopBackOff.
+# a 100% failure rate, not an unlucky draw. create_user.py then rejects it at
+# container start with WazuhError 5007 ("Insecure user password provided").
+#
+# WHAT THAT COSTS -- stated precisely, because an earlier version of this
+# comment overstated it and sent an investigation down the wrong path. The
+# manager logs the rejection on every boot:
+#
+#     WazuhError: Error 5007 - Insecure user password provided
+#     There was an error configuring the API user
+#     [cont-init.d] 2-manager: exited 0.      <-- exits ZERO
+#
+# and then starts normally. A crashlooping manager seen alongside this has
+# some other cause.
+#
+# ON AN INITIAL DEPLOYMENT the damage stops there. The API user is created
+# through a path that does not run the regex, so it exists with the generated
+# password and authenticates fine (POST /security/user/authenticate returns
+# 200); only the idempotent update_user re-set on later boots validates and
+# fails. Recurring log noise, plus a credential that does not meet the policy
+# it is measured against.
+#
+# ON A ROTATION IT BREAKS AUTHENTICATION, and that is the case worth fearing.
+# Follow README "Credential Rotation" with a generator that emits a
+# non-compliant password and:
+#
+#   step 2  `kubectl apply -k` writes the NEW password into wazuh-api-cred
+#   step 5  restarts the manager AND the dashboard
+#
+# The dashboard comes back using the new password. The manager's update_user
+# rejects it with 5007, so the API user keeps the OLD one. Dashboard-to-manager
+# authentication then fails outright -- agent management stops working -- and
+# the only clue is a 5007 line that the previous paragraph would have told you
+# to ignore.
+#
+# So: harmless-ish on first install, breaking on rotation. Both are fixed by
+# generating a compliant password in the first place, which is what the
+# verification loop below is for.
 #
 # Only WAZUH_API_PASSWORD is checked against that regex (the indexer and authd
 # passwords have no complexity policy, which is why a broken generator still
