@@ -164,14 +164,20 @@ commonLabels:
   deployment: akamai-quickstart
 
 # Annotations applied to all resources
+#
+# Do NOT add deployment.kubernetes.io/revision here. Kubernetes owns that
+# annotation: it stamps it on a Deployment and bumps it on every rollout.
+# Hardcoding "1" pinned a value the cluster then moved away from, so a GitOps
+# reconciler saw permanent, unfixable drift on Deployment/wazuh-dashboard --
+# desired 1, live 3 after two restarts, and nothing could ever converge. It was
+# invisible on the StatefulSets only because Kubernetes never updates it there.
 commonAnnotations:
-  deployment.kubernetes.io/revision: "1"
   documentation: "https://github.com/johnybradshaw/akamai-wazuh"
 
 # Images (can be overridden for specific versions)
 # Pinned to the latest stable Wazuh release. The wazuh-kubernetes base
 # manifests are vendored as a git submodule (kubernetes/wazuh-kubernetes,
-# branch 4.14.6); these image tags are what actually gets deployed. DHI
+# pinned by commit); these image tags are what actually gets deployed. DHI
 # BusyBox is used for the base and overlay init containers; root-required
 # operations are explicitly configured in indexer-resources.yaml.
 images:
