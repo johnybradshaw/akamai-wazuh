@@ -82,13 +82,32 @@ log_info "Generating secure random passwords..."
 #     There was an error configuring the API user
 #     [cont-init.d] 2-manager: exited 0.      <-- exits ZERO
 #
-# and then starts normally. The API user is created through a path that does
-# not run the regex, so it exists with the generated password and
-# authenticates fine (POST /security/user/authenticate returns 200); only the
-# idempotent update_user re-set on later boots validates and fails. This is
-# recurring log noise and a credential that does not meet the policy it is
-# measured against -- NOT a startup failure. A crashlooping manager seen
-# alongside it has some other cause.
+# and then starts normally. A crashlooping manager seen alongside this has
+# some other cause.
+#
+# ON AN INITIAL DEPLOYMENT the damage stops there. The API user is created
+# through a path that does not run the regex, so it exists with the generated
+# password and authenticates fine (POST /security/user/authenticate returns
+# 200); only the idempotent update_user re-set on later boots validates and
+# fails. Recurring log noise, plus a credential that does not meet the policy
+# it is measured against.
+#
+# ON A ROTATION IT BREAKS AUTHENTICATION, and that is the case worth fearing.
+# Follow README "Credential Rotation" with a generator that emits a
+# non-compliant password and:
+#
+#   step 2  `kubectl apply -k` writes the NEW password into wazuh-api-cred
+#   step 5  restarts the manager AND the dashboard
+#
+# The dashboard comes back using the new password. The manager's update_user
+# rejects it with 5007, so the API user keeps the OLD one. Dashboard-to-manager
+# authentication then fails outright -- agent management stops working -- and
+# the only clue is a 5007 line that the previous paragraph would have told you
+# to ignore.
+#
+# So: harmless-ish on first install, breaking on rotation. Both are fixed by
+# generating a compliant password in the first place, which is what the
+# verification loop below is for.
 #
 # Only WAZUH_API_PASSWORD is checked against that regex (the indexer and authd
 # passwords have no complexity policy, which is why a broken generator still
