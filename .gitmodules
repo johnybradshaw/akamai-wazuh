@@ -5,11 +5,19 @@
 	# (e918d81176), which is the only thing that pins it -- `branch` is
 	# consulted solely by `git submodule update --remote`.
 	#
-	# It previously read `branch = 4.14.6`. Upstream deleted that branch and
-	# never tagged it under that name (the live refs are branches 4.14.8 /
-	# 4.14.9 and tags v4.14.0..v4.14.7), so the key named a ref that does not
-	# exist and `git clone -b 4.14.6` fails outright.
+	# It previously read `branch = 4.14.6`. Upstream deleted that branch, so
+	# the key named a ref that does not exist and `git clone -b 4.14.6` fails
+	# outright. Upstream deletes release branches routinely: 4.14.8 and 4.14.9
+	# have gone the same way.
+	#
+	# Upstream refs as of 2026-11-10 (`git ls-remote`):
+	#   branches  4.14.10, 4.14.11, 4.14.12
+	#   tags      v4.14.0 .. v4.14.10
+	# Tag v4.14.6 does exist. It is 3 commits ahead of the pin (e918d81176)
+	# and differs only in VERSION.json (stage rc1 -> rc2); the manifests are
+	# identical.
 	#
 	# DO NOT run `git submodule update --remote` here: with no branch key it
-	# follows upstream's default branch, which is alpha. Move the pin with an
-	# explicit `git -C kubernetes/wazuh-kubernetes checkout <ref>` instead.
+	# follows upstream's default branch, `main`, which is alpha (5.1.0-alpha0
+	# as of 2026-11-10). Move the pin with an explicit
+	# `git -C kubernetes/wazuh-kubernetes checkout <ref>` instead.
