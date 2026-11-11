@@ -27,8 +27,8 @@ Report if image tags differ (they should all match the latest stable release, cu
 ### 3. Version Cross-Reference
 Two versions are intentionally decoupled — flag anything unexpected:
 - Image `newTag` (container images, e.g. `4.14.5`, the latest GA release)
-- Submodule branch in `.gitmodules` (base manifests, e.g. `4.14.6`)
-- `WAZUH_VERSION` in `config.env.example` / `deploy.sh` is only a fallback clone ref; it should match the submodule branch.
+- Submodule pin: the commit recorded for `kubernetes/wazuh-kubernetes` (base manifests; currently `84e99645ce`, tag `v4.14.6`). `.gitmodules` must carry no `branch` key.
+- `WAZUH_K8S_COMMIT` in `config.env.example`, `deploy.sh` and `scripts/regenerate-certs.sh` is only a fallback clone target; all three must equal the submodule commit.
 
 ### 4. Kustomize Syntax Validation
 Run `kubectl kustomize kubernetes/ 2>&1` (or `kustomize build kubernetes/`) and report errors. Expected, non-failing notes:

@@ -804,7 +804,7 @@ Two things carry a version in this repo (see also [CLAUDE.md](CLAUDE.md)):
   `deploy.sh` (currently `4.14.5`). It consumes generated credentials,
   certificates, and resource patches from `kubernetes/production-overlay/`.
 - **Base manifests** — the `kubernetes/wazuh-kubernetes` **git submodule**,
-  pinned in `.gitmodules` to the `4.14.6` branch.
+  pinned by commit to upstream tag `v4.14.6` (`84e99645ce`).
 
 ### Hardened Helper Images
 

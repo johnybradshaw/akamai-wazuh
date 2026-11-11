@@ -2,7 +2,8 @@
 	path = kubernetes/wazuh-kubernetes
 	url = https://github.com/wazuh/wazuh-kubernetes.git
 	# No `branch` key on purpose. This submodule is pinned by COMMIT
-	# (e918d81176), which is the only thing that pins it -- `branch` is
+	# (84e99645ce, the commit tag v4.14.6 points at), which is the only
+	# thing that pins it -- `branch` is
 	# consulted solely by `git submodule update --remote`.
 	#
 	# It previously read `branch = 4.14.6`. Upstream deleted that branch, so
@@ -13,9 +14,11 @@
 	# Upstream refs as of 2026-11-10 (`git ls-remote`):
 	#   branches  4.14.10, 4.14.11, 4.14.12
 	#   tags      v4.14.0 .. v4.14.10
-	# Tag v4.14.6 does exist. It is 3 commits ahead of the pin (e918d81176)
-	# and differs only in VERSION.json (stage rc1 -> rc2); the manifests are
-	# identical.
+	# On 2026-11-11 the pin moved from e918d81176 (a commit from the deleted
+	# 4.14.6 branch) to 84e99645ce, the commit tag v4.14.6 points at, so the
+	# pin maps to a named ref (#29). The two differ only in VERSION.json
+	# (stage rc1 -> rc2); the manifests are identical. Upstream's tagged
+	# commit is titled "Revert tag for v4.14.6-rc2" and still says rc2.
 	#
 	# DO NOT run `git submodule update --remote` here: with no branch key it
 	# follows upstream's default branch, `main`, which is alpha (5.1.0-alpha0

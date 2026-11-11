@@ -69,3 +69,20 @@ To support existing clusters, cloud-specific values are parameterised
   by the `kustomize-validate` skill.
 - Bumping the base manifests is a deliberate, reviewable change (move the
   submodule pointer and commit it) rather than an implicit runtime clone.
+
+## Amendment (2026-11-11, #29)
+
+Two premises above no longer hold; the decision itself (vendor as a pinned
+submodule) stands.
+
+- **Pin by commit, not branch.** Upstream deleted the `4.14.6` branch (and later
+  `4.14.8` / `4.14.9`), so `.gitmodules` now carries no `branch` key. The
+  recorded submodule commit is the only pin, and `WAZUH_K8S_COMMIT` (the
+  fallback clone target in `deploy.sh`, `scripts/regenerate-certs.sh` and
+  `config.env.example`) must equal it.
+- **Upstream does tag 4.14 releases** (`v4.14.0`..`v4.14.10` as of 2026-11-10).
+  The pin moved from `e918d81176` (a commit from the deleted branch) to
+  `84e99645ce`, the commit tag `v4.14.6` points at, so the pin maps to a named
+  ref. The two differ only in `VERSION.json` (`stage` `rc1` → `rc2`); the
+  manifests are identical. Upstream's tagged commit is titled
+  `Revert tag for v4.14.6-rc2` and still self-labels as `rc2`.
