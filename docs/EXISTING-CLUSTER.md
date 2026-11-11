@@ -11,8 +11,8 @@ the [README](../README.md) instead.
 ## How the project is structured
 
 - The Wazuh base manifests (`wazuh/wazuh-kubernetes`) are vendored as a **git
-  submodule** at `kubernetes/wazuh-kubernetes`, pinned in
-  [`.gitmodules`](../.gitmodules) to the `4.14.6` branch. This makes the
+  submodule** at `kubernetes/wazuh-kubernetes`, pinned by commit to upstream
+  tag `v4.14.6` (see [`.gitmodules`](../.gitmodules)). This makes the
   deployment reproducible and lets you consume this repository as a submodule of
   your own GitOps repo.
 - Container image tags are pinned in

@@ -9,7 +9,7 @@ Contains all Kubernetes manifests, Kustomize overlays, and deployment scripts fo
 | File | Description |
 |------|-------------|
 | `kustomization.yml` | Main Kustomize config — the **active** deploy target (`kubectl apply -k kubernetes/`). Image tags, replicas, resource references, cert/config generators |
-| `wazuh-kubernetes/` | Upstream base manifests — **git submodule**, pinned via `.gitmodules` to branch `4.14.6` |
+| `wazuh-kubernetes/` | Upstream base manifests — **git submodule**, pinned **by commit** `84e99645ce` (tag `v4.14.6`); `.gitmodules` has no `branch` key |
 | `production-overlay/` | Production customisations (resources, ingress, load balancers). Single source of truth |
 | `wazuh-policy-exception.yaml` | Policy exception manifest for Wazuh pods |
 | `scripts/generate-credentials.sh` | Generates secure random passwords and bcrypt hashes |
@@ -28,7 +28,7 @@ Contains all Kubernetes manifests, Kustomize overlays, and deployment scripts fo
 
 - `production-overlay/` is the single source of truth (the old duplicate `overlays/production/` has been removed)
 - The active kustomization MUST stay at `kubernetes/` so its `secretGenerator`/`configMapGenerator` can read cert/config files inside the `wazuh-kubernetes/` submodule (kustomize's default load restrictor blocks file refs outside the kustomization root)
-- Image versions are controlled via `newTag` in kustomization files (currently `4.14.5`); the base manifests version is the submodule pin (`4.14.6`)
+- Image versions are controlled via `newTag` in kustomization files (currently `4.14.5`); the base manifests version is the submodule pin (commit `84e99645ce`, tag `v4.14.6`)
 - Cloud-specific values are parameterised with `${DOMAIN}`, `${STORAGE_PROVISIONER}`, `${INGRESS_CLASS}`, `${CLUSTER_ISSUER}` and substituted by `deploy.sh` (defaults reproduce LKE behaviour)
 - The cert-manager `Certificate` is intentionally NOT a standalone resource (ingress-shim creates it), so manifests apply cleanly on clusters without cert-manager
 - Resource limits are defined in per-component `*-resources.yaml` files
