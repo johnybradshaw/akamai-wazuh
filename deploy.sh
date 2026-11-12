@@ -249,7 +249,7 @@ WAZUH_NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
 # A COMMIT, not a named ref, so the fallback produces byte-identical manifests
 # to the submodule. The old default (`4.14.6`) named an upstream branch that no
 # longer exists, so this path failed with "Remote branch 4.14.6 not found".
-WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-84e99645ce4c10cc2062eb22febee563667fef39}"
+WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-97bc03d9fa03342302e76aca5b0f3200269a63a1}"
 DEPLOYMENT_TIMEOUT="${DEPLOYMENT_TIMEOUT:-600}"
 
 # Bring-your-own-infrastructure knobs (substituted into the Kustomize overlay).

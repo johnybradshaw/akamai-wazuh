@@ -86,3 +86,14 @@ submodule) stands.
   ref. The two differ only in `VERSION.json` (`stage` `rc1` → `rc2`); the
   manifests are identical. Upstream's tagged commit is titled
   `Revert tag for v4.14.6-rc2` and still self-labels as `rc2`.
+
+## Amendment (2026-11-12, #31)
+
+- Images and the pin moved together to **4.14.10**: `newTag` `4.14.10`, and the
+  pin to `97bc03d9fa`, the commit tag `v4.14.10` points at. Between `v4.14.6` and
+  `v4.14.10` the only change under `wazuh/` is the image tags. The decoupling
+  above still holds: `newTag` decides what runs.
+- Agent versions are pinned too: `WAZUH_AGENT_VERSION` in
+  `agent-deployment/deploy-agent.sh` (apt `=<version>-1` plus `apt-mark hold`) and
+  `agent-deployment/deploy-k8s-agent.sh` (image tag). Wazuh supports agents at
+  the manager's version or older only, so agents follow the manager.

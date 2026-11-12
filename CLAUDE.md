@@ -180,8 +180,8 @@ deployment (and for AI assistants integrating it into another project), follow
 ### Image Version Management
 
 Images are managed via `newTag` in kustomization files. **Note:** There are two version references in this repo, decoupled on purpose:
-- `newTag` in `kubernetes/kustomization.yml` and `kubernetes/production-overlay/kustomization.yml` — the container image tags actually deployed (currently `4.14.5`, the latest stable Wazuh release).
-- The `kubernetes/wazuh-kubernetes` **git submodule**, pinned **by commit** (`84e99645ce`, the commit tag `v4.14.6` points at) — the base manifests. Until 2026-11-11 (#29) the pin was `e918d81176`, from upstream's `4.14.6` branch, which upstream has since **deleted**. Upstream deletes release branches routinely, so never pin by branch. As of 2026-11-10 (`git ls-remote`), upstream has branches `4.14.10` / `4.14.11` / `4.14.12` and tags `v4.14.0`..`v4.14.10`. The move to tag `v4.14.6` changed only `VERSION.json` (`stage` `rc1` → `rc2`), so the manifests are identical; note upstream's tagged commit is titled `Revert tag for v4.14.6-rc2` and still self-labels as `rc2`. `.gitmodules` deliberately carries **no `branch` key**, so do not run `git submodule update --remote` (it would follow upstream's default branch, `main`, which is `5.1.0-alpha0`) — move the pin with an explicit `git -C kubernetes/wazuh-kubernetes checkout <ref>`.
+- `newTag` in `kubernetes/kustomization.yml` and `kubernetes/production-overlay/kustomization.yml` — the container image tags actually deployed (currently `4.14.10`, the latest stable Wazuh release as of 2026-11-12).
+- The `kubernetes/wazuh-kubernetes` **git submodule**, pinned **by commit** (`97bc03d9fa`, the commit tag `v4.14.10` points at; moved in #31) — the base manifests. Before that it was `84e99645ce` (tag `v4.14.6`, #29), and before that `e918d81176`, from upstream's `4.14.6` branch, which upstream has since **deleted**. Upstream deletes release branches routinely, so never pin by branch. As of 2026-11-10 (`git ls-remote`), upstream has branches `4.14.10` / `4.14.11` / `4.14.12` and tags `v4.14.0`..`v4.14.10`. From `v4.14.6` to `v4.14.10` the only change under `wazuh/` is the image tags, which `newTag` overrides. Upstream's tagged commits say `"stage": "rc2"` in `VERSION.json` even for GA releases, so do not read that field as release status. `.gitmodules` deliberately carries **no `branch` key**, so do not run `git submodule update --remote` (it would follow upstream's default branch, `main`, which is `5.1.0-alpha0`) — move the pin with an explicit `git -C kubernetes/wazuh-kubernetes checkout <ref>`.
 - `WAZUH_K8S_COMMIT` in `config.env` / `deploy.sh` is only a **fallback clone target** used when the repo was not checked out with submodules (e.g. a source tarball). It is a commit rather than a named ref so the fallback yields byte-identical manifests to the submodule. It replaced `WAZUH_VERSION`, whose `4.14.6` default named the deleted branch and failed with `Remote branch 4.14.6 not found`.
 
 When updating versions, bump the image `newTag` in both kustomization files and, if needed, move the submodule pointer (see "Update Wazuh Version"). The `kustomize-validate` skill checks consistency.
@@ -247,7 +247,7 @@ periodically is still recommended.
 
 Use the update-registry script:
 ```bash
-./scripts/update-registry.sh harbor.company.com/wazuh 4.14.5
+./scripts/update-registry.sh harbor.company.com/wazuh 4.14.10
 # Or with Harbor proxy
 ./scripts/update-registry.sh harbor.company.com/dockerhub-proxy/wazuh --proxy
 ```
@@ -304,7 +304,7 @@ kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_control -l
 |----------|---------|-------------|
 | `DEPLOY_PROFILE` | `akamai` | `akamai` or `existing-cluster` |
 | `WAZUH_NAMESPACE` | `wazuh` | Kubernetes namespace |
-| `WAZUH_K8S_COMMIT` | `84e99645ce…` | Fallback wazuh-kubernetes clone commit (submodule normally used) |
+| `WAZUH_K8S_COMMIT` | `97bc03d9fa…` | Fallback wazuh-kubernetes clone commit (submodule normally used) |
 | `STORAGE_PROVISIONER` | `linodebs.csi.linode.com` | CSI provisioner for `wazuh-storage` |
 | `INGRESS_CLASS` | `nginx` | Ingress class for the dashboard |
 | `CLUSTER_ISSUER` | `letsencrypt-prod` | cert-manager ClusterIssuer |

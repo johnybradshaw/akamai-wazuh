@@ -53,7 +53,7 @@ else
     # and never tagged it under that name, so this path failed outright with
     # "Remote branch 4.14.6 not found". A commit also guarantees this produces
     # the same tree as the submodule.
-    WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-84e99645ce4c10cc2062eb22febee563667fef39}"
+    WAZUH_K8S_COMMIT="${WAZUH_K8S_COMMIT:-97bc03d9fa03342302e76aca5b0f3200269a63a1}"
     log_info "Fetching wazuh-kubernetes at pinned commit (${WAZUH_K8S_COMMIT:0:10})..."
     git init -q "$WAZUH_K8S_DIR"
     # Idempotent by design -- see the matching note in deploy.sh. A failed fetch

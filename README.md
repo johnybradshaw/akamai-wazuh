@@ -3,7 +3,7 @@
 > Production-ready, turnkey deployment of Wazuh Security Information and Event Management (SIEM) platform on Akamai Cloud Computing (Linode Kubernetes Engine).
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Wazuh Version](https://img.shields.io/badge/Wazuh-4.14.5-green.svg)](https://wazuh.com/)
+[![Wazuh Version](https://img.shields.io/badge/Wazuh-4.14.10-green.svg)](https://wazuh.com/)
 [![Platform](https://img.shields.io/badge/Platform-Akamai%20Cloud%20%7C%20any%20K8s-orange.svg)](https://www.linode.com/products/kubernetes/)
 
 ## ⚠️ Disclaimer
@@ -801,10 +801,10 @@ Two things carry a version in this repo (see also [CLAUDE.md](CLAUDE.md)):
 
 - **Active Wazuh image tags** — `newTag` in
   `kubernetes/kustomization.yml`, which is the configuration applied by
-  `deploy.sh` (currently `4.14.5`). It consumes generated credentials,
+  `deploy.sh` (currently `4.14.10`). It consumes generated credentials,
   certificates, and resource patches from `kubernetes/production-overlay/`.
 - **Base manifests** — the `kubernetes/wazuh-kubernetes` **git submodule**,
-  pinned by commit to upstream tag `v4.14.6` (`84e99645ce`).
+  pinned by commit to upstream tag `v4.14.10` (`97bc03d9fa`).
 
 ### Hardened Helper Images
 
@@ -822,7 +822,7 @@ Image is available for Wazuh Manager, Indexer, Dashboard, or Agent. See the
 [Docker Hardened Images documentation](https://docs.docker.com/dhi/explore/what/)
 for runtime migration constraints and provenance information.
 
-### Minor Updates (e.g., 4.14.4 → 4.14.5)
+### Minor Updates (e.g., 4.14.9 → 4.14.10)
 
 ```bash
 # Update the active Kustomization image tags
@@ -831,11 +831,11 @@ nano kubernetes/kustomization.yml
 # Change image tags
 images:
   - name: wazuh/wazuh-indexer
-    newTag: 4.14.5
+    newTag: 4.14.10
   - name: wazuh/wazuh-manager
-    newTag: 4.14.5
+    newTag: 4.14.10
   - name: wazuh/wazuh-dashboard
-    newTag: 4.14.5
+    newTag: 4.14.10
 
 # Apply update
 kubectl apply -k kubernetes/

@@ -12,12 +12,12 @@ the [README](../README.md) instead.
 
 - The Wazuh base manifests (`wazuh/wazuh-kubernetes`) are vendored as a **git
   submodule** at `kubernetes/wazuh-kubernetes`, pinned by commit to upstream
-  tag `v4.14.6` (see [`.gitmodules`](../.gitmodules)). This makes the
+  tag `v4.14.10` (see [`.gitmodules`](../.gitmodules)). This makes the
   deployment reproducible and lets you consume this repository as a submodule of
   your own GitOps repo.
 - Container image tags are pinned in
   [`kubernetes/kustomization.yml`](../kubernetes/kustomization.yml) to the latest
-  stable Wazuh release (`4.14.5`).
+  stable Wazuh release (`4.14.10`).
 - Cloud-specific values are **parameterised** and substituted by `deploy.sh`:
   `${DOMAIN}`, `${STORAGE_PROVISIONER}`, `${INGRESS_CLASS}`, `${CLUSTER_ISSUER}`.
 
