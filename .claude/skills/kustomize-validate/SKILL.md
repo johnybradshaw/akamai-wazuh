@@ -22,12 +22,12 @@ Extract `newTag` values from all kustomization files:
 - `kubernetes/kustomization.yml`
 - `kubernetes/production-overlay/kustomization.yml`
 
-Report if image tags differ (they should all match the latest stable release, currently `4.14.5`).
+Report if image tags differ (they should all match the latest stable release, currently `4.14.10`).
 
 ### 3. Version Cross-Reference
 Two versions are intentionally decoupled — flag anything unexpected:
-- Image `newTag` (container images, e.g. `4.14.5`, the latest GA release)
-- Submodule pin: the commit recorded for `kubernetes/wazuh-kubernetes` (base manifests; currently `84e99645ce`, tag `v4.14.6`). `.gitmodules` must carry no `branch` key.
+- Image `newTag` (container images, e.g. `4.14.10`, the latest GA release)
+- Submodule pin: the commit recorded for `kubernetes/wazuh-kubernetes` (base manifests; currently `97bc03d9fa`, tag `v4.14.10`). `.gitmodules` must carry no `branch` key.
 - `WAZUH_K8S_COMMIT` in `config.env.example`, `deploy.sh` and `scripts/regenerate-certs.sh` is only a fallback clone target; all three must equal the submodule commit.
 
 ### 4. Kustomize Syntax Validation

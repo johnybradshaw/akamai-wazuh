@@ -159,6 +159,28 @@ root@db-server.example.com,db-01,database-servers
 - Same as single VM deployment
 - CSV file with VM list
 
+## Agent Version
+
+All three scripts install a **pinned** agent version, `4.14.10` by default,
+which matches the manager image `newTag` in `kubernetes/kustomization.yml`.
+Wazuh supports agents at the manager's version or **older** only, so never
+deploy an agent newer than the manager.
+
+- VM scripts (`deploy-agent.sh`, `deploy-agents-bulk.sh`) install
+  `wazuh-agent=<version>-1` and put the package on `apt-mark hold`, so a routine
+  `apt upgrade` cannot move it past the manager.
+- `deploy-k8s-agent.sh` uses the `wazuh/wazuh-agent:<version>` image.
+
+Override for one run with `WAZUH_AGENT_VERSION`, for example to match an older
+manager:
+
+```bash
+WAZUH_AGENT_VERSION=4.14.9 ./deploy-agent.sh web-server-01
+```
+
+To upgrade agents, upgrade the manager first. Then re-run the script with the
+new version; the VM script purges and reinstalls the agent.
+
 ## Agent Groups
 
 Organize your agents by environment, function, or location:

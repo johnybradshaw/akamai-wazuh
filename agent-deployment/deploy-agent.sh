@@ -67,6 +67,15 @@ AGENT_GROUP="${3:-default}"
 
 # Configuration
 WAZUH_NAMESPACE="${WAZUH_NAMESPACE:-wazuh}"
+# Agent version to install. Must not be newer than the manager (Wazuh supports
+# agents at the same version as the manager or older). Keep it equal to the
+# image newTag in kubernetes/kustomization.yml. Override per run, e.g.
+#   WAZUH_AGENT_VERSION=4.14.9 ./deploy-agent.sh host
+WAZUH_AGENT_VERSION="${WAZUH_AGENT_VERSION:-4.14.10}"
+if [[ ! "$WAZUH_AGENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_error "WAZUH_AGENT_VERSION must look like 4.14.10, got: $WAZUH_AGENT_VERSION"
+    exit 1
+fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
@@ -184,6 +193,7 @@ WAZUH_REGISTRATION_SERVER="__WAZUH_REGISTRATION_SERVER__"
 AGENT_PASSWORD="__AGENT_PASSWORD__"
 AGENT_NAME="__AGENT_NAME__"
 AGENT_GROUP="__AGENT_GROUP__"
+WAZUH_AGENT_VERSION="__WAZUH_AGENT_VERSION__"
 
 log_info "Starting Wazuh agent installation on $(hostname)..."
 
@@ -213,6 +223,8 @@ if systemctl is-active --quiet wazuh-agent 2>/dev/null; then
 fi
 
 if dpkg -l | grep -q wazuh-agent; then
+    # A held package refuses removal, and the `|| true` below would hide that.
+    apt-mark unhold wazuh-agent || true
     apt-get remove --purge -y wazuh-agent || true
     rm -rf /var/ossec
 fi
@@ -240,7 +252,12 @@ WAZUH_REGISTRATION_SERVER="$WAZUH_REGISTRATION_SERVER" \
 WAZUH_REGISTRATION_PASSWORD="$AGENT_PASSWORD" \
 WAZUH_AGENT_NAME="$AGENT_NAME" \
 WAZUH_AGENT_GROUP="$AGENT_GROUP" \
-apt-get install -y wazuh-agent
+apt-get install -y "wazuh-agent=${WAZUH_AGENT_VERSION}-1"
+
+# Hold the package so a routine `apt upgrade` cannot move the agent ahead of
+# the manager. Upgrade deliberately by re-running this script with a new
+# WAZUH_AGENT_VERSION once the manager is on that version or newer.
+apt-mark hold wazuh-agent
 
 # Verify installation
 if [[ ! -f /var/ossec/bin/wazuh-control ]]; then
@@ -299,6 +316,7 @@ DEPLOY_SCRIPT="${DEPLOY_SCRIPT//__WAZUH_REGISTRATION_SERVER__/$WAZUH_REGISTRATIO
 DEPLOY_SCRIPT="${DEPLOY_SCRIPT//__AGENT_PASSWORD__/$AGENT_PASSWORD}"
 DEPLOY_SCRIPT="${DEPLOY_SCRIPT//__AGENT_NAME__/$AGENT_NAME}"
 DEPLOY_SCRIPT="${DEPLOY_SCRIPT//__AGENT_GROUP__/$AGENT_GROUP}"
+DEPLOY_SCRIPT="${DEPLOY_SCRIPT//__WAZUH_AGENT_VERSION__/$WAZUH_AGENT_VERSION}"
 
 # Execute deployment script on remote VM
 log_info "Executing deployment on remote VM..."

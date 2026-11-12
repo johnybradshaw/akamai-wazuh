@@ -61,9 +61,9 @@ INTERNAL_REGISTRY="your-registry.company.com/wazuh"
 
 # Pull, tag, and push Wazuh images
 for image in wazuh-indexer wazuh-manager wazuh-dashboard; do
-  docker pull wazuh/${image}:4.14.5
-  docker tag wazuh/${image}:4.14.5 ${INTERNAL_REGISTRY}/${image}:4.14.5
-  docker push ${INTERNAL_REGISTRY}/${image}:4.14.5
+  docker pull wazuh/${image}:4.14.10
+  docker tag wazuh/${image}:4.14.10 ${INTERNAL_REGISTRY}/${image}:4.14.10
+  docker push ${INTERNAL_REGISTRY}/${image}:4.14.10
 done
 ```
 
@@ -75,13 +75,13 @@ Edit `kubernetes/kustomization.yml`:
 images:
   - name: wazuh/wazuh-indexer
     newName: your-registry.company.com/wazuh/wazuh-indexer
-    newTag: 4.14.5
+    newTag: 4.14.10
   - name: wazuh/wazuh-manager
     newName: your-registry.company.com/wazuh/wazuh-manager
-    newTag: 4.14.5
+    newTag: 4.14.10
   - name: wazuh/wazuh-dashboard
     newName: your-registry.company.com/wazuh/wazuh-dashboard
-    newTag: 4.14.5
+    newTag: 4.14.10
 ```
 
 #### Step 3: Redeploy
@@ -122,7 +122,7 @@ If using Harbor with proxy cache or replication:
    images:
      - name: wazuh/wazuh-indexer
        newName: harbor.company.com/dockerhub-proxy/wazuh/wazuh-indexer
-       newTag: 4.14.5
+       newTag: 4.14.10
    ```
 
 #### Using Artifactory
@@ -140,7 +140,7 @@ If using JFrog Artifactory with remote repositories:
    images:
      - name: wazuh/wazuh-indexer
        newName: artifactory.company.com/dockerhub-remote/wazuh/wazuh-indexer
-       newTag: 4.14.5
+       newTag: 4.14.10
    ```
 
 **Pros:**

@@ -50,6 +50,9 @@ AGENT_NAMESPACE="wazuh-agents"
 MANAGER_NAMESPACE="wazuh"
 AGENT_GROUP="kubernetes"
 PRIVILEGED="false"
+# Agent image tag. Must not be newer than the manager; keep it equal to the
+# image newTag in kubernetes/kustomization.yml.
+WAZUH_AGENT_VERSION="${WAZUH_AGENT_VERSION:-4.14.10}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -316,7 +319,7 @@ spec:
       - operator: Exists
       containers:
       - name: wazuh-agent
-        image: wazuh/wazuh-agent:4.14.5
+        image: wazuh/wazuh-agent:${WAZUH_AGENT_VERSION}
         resources:
           requests:
             cpu: 100m
