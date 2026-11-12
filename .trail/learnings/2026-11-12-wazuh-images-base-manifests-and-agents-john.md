@@ -33,7 +33,7 @@ touches:
 ## Watch out
 - Never run `git submodule update --remote` here; it follows upstream `main`, which is alpha.
 - Upstream VERSION.json says "stage": "rc2" even on GA tags. Check documentation.wazuh.com release notes for release status, not that field.
-- The live deployment does not track this repo: wealth-tracker commits rendered manifests and bumps image tags in place. A bump here does not reach the cluster by itself.
+- the live deployment does not track this repo: its private GitOps repo commits rendered manifests and bumps image tags in place. A bump here does not reach the cluster by itself.
 
 In the code:
 - Pin `97bc03d9fa03342302e76aca5b0f3200269a63a1` (tag v4.14.10); `WAZUH_K8S_COMMIT` equals it in `deploy.sh`, `scripts/regenerate-certs.sh`, `config.env.example`.
